@@ -18,6 +18,7 @@
 #else
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <stddef.h>
 #include <ctype.h>
@@ -111,7 +112,9 @@ typedef unsigned char u8_t;
 #define SPIFFS_GC_HEUR_W_ERASE_AGE      (50)
 #endif
 
-// Object name maximum length.
+// Object name maximum length. Note that this length include the
+// zero-termination character, meaning maximum string of characters
+// can at most be SPIFFS_OBJ_NAME_LEN - 1.
 #ifndef SPIFFS_OBJ_NAME_LEN
 #define SPIFFS_OBJ_NAME_LEN             (32)
 #endif
@@ -131,6 +134,17 @@ typedef unsigned char u8_t;
 #define SPIFFS_USE_MAGIC                (0)
 #endif
 
+#if SPIFFS_USE_MAGIC
+// Only valid when SPIFFS_USE_MAGIC is enabled. If SPIFFS_USE_MAGIC_LENGTH is
+// enabled, the magic will also be dependent on the length of the filesystem.
+// For example, a filesystem configured and formatted for 4 megabytes will not
+// be accepted for mounting with a configuration defining the filesystem as 2
+// megabytes.
+#ifndef SPIFFS_USE_MAGIC_LENGTH
+#define SPIFFS_USE_MAGIC_LENGTH         (0)
+#endif
+#endif
+
 // SPIFFS_LOCK and SPIFFS_UNLOCK protects spiffs from reentrancy on api level
 // These should be defined on a multithreaded system
 
@@ -142,7 +156,6 @@ typedef unsigned char u8_t;
 #ifndef SPIFFS_UNLOCK
 #define SPIFFS_UNLOCK(fs)
 #endif
-
 
 // Enable if only one spiffs instance with constant configuration will exist
 // on the target. This will reduce calculations, flash and memory accesses.
@@ -189,6 +202,20 @@ typedef unsigned char u8_t;
 // mounting, which must be defined.
 #ifndef SPIFFS_FILEHDL_OFFSET
 #define SPIFFS_FILEHDL_OFFSET                 0
+#endif
+
+// Enable this to compile a read only version of spiffs.
+// This will reduce binary size of spiffs. All code comprising modification
+// of the file system will not be compiled. Some config will be ignored.
+// HAL functions for erasing and writing to spi-flash may be null. Cache
+// can be disabled for even further binary size reduction (and ram savings).
+// Functions modifying the fs will return SPIFFS_ERR_RO_NOT_IMPL.
+// If the file system cannot be mounted due to aborted erase operation and
+// SPIFFS_USE_MAGIC is enabled, SPIFFS_ERR_RO_ABORTED_OPERATION will be
+// returned.
+// Might be useful for e.g. bootloaders and such.
+#ifndef SPIFFS_READ_ONLY
+#define SPIFFS_READ_ONLY                      0
 #endif
 
 // Set SPIFFS_TEST_VISUALISATION to non-zero to enable SPIFFS_vis function
