@@ -268,7 +268,7 @@ spiff_update: spiff_clean $(SPIFF_BIN_OUT)
 
 $(TARGET_OUT): $(APP_AR)
 	$(vecho) "LD $@"	
-	$(Q) $(LD) -L$(USER_LIBDIR) -L$(SDK_LIBDIR) $(LD_SCRIPT) $(LDFLAGS) -Wl,--start-group $(LIBS) $(APP_AR) -Wl,--end-group -o $@
+	$(Q) $(LD) -L$(USER_LIBDIR) -L$(SDK_LIBDIR) $(LD_SCRIPT) $(LDFLAGS) -Wl,--start-group $(LIBS) $(APP_AR) -Wl,--end-group $(TAIL_LDFLAGS) -o $@
 
 	$(vecho) ""	
 	$(vecho) "#Memory / Section info:"	
