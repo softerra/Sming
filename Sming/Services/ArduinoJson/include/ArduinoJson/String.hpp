@@ -7,8 +7,18 @@
 
 #pragma once
 
-#ifdef _MSC_VER
-#define FORCE_INLINE __forceinline
+#include "Configuration.hpp"
+
+#if ARDUINOJSON_USE_ARDUINO_STRING
+
+#include <WString.h>
+
 #else
-#define FORCE_INLINE __attribute__((always_inline))
+
+#include <string>
+
+namespace ArduinoJson {
+typedef std::string String;
+}
+
 #endif
