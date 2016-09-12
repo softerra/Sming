@@ -128,8 +128,8 @@ void HttpServerConnection::sendError(const char* message /* = NULL*/)
 	response.sendHeader(*this);
 
 	writeString("<H2 color='#444'>", TCP_WRITE_FLAG_MORE);
-	const char* statusName = response.getStatusName().c_str();
-	writeString(message ? message : statusName, TCP_WRITE_FLAG_COPY);
+	writeString(message ? message : response.getStatusName().c_str(),
+					TCP_WRITE_FLAG_COPY);
 	writeString("</H2>");
 	state = eHCS_Sent;
 }
