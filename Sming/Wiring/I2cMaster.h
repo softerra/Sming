@@ -72,6 +72,7 @@ class SoftI2cMaster : public I2cMasterBase
 {
 public:
   SoftI2cMaster(uint8_t sdaPin, uint8_t sclPin);
+  virtual ~SoftI2cMaster();
   uint8_t read(uint8_t last);
   bool restart(uint8_t addressRW);
   bool start(uint8_t addressRW);
