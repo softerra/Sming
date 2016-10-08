@@ -35,7 +35,7 @@
 
 #undef assert
 #ifdef DISABLE_DEBUGF
-#define debugf(fmt, ...) (void(0))
+#define debugf(fmt, ...) ((void)0)
 #else
 #define debugf(fmt, ...) m_printf(fmt"\r\n", ##__VA_ARGS__)
 #endif
