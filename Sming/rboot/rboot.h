@@ -47,6 +47,8 @@ extern "C" {
 // values will use more ram at run time
 //#define MAX_ROMS 4
 
+// Allow oprog-specific pre-installed configuration data
+//#define BOOT_CONFIG_OPROG
 
 // you should not need to modify anything below this line
 
@@ -78,6 +80,10 @@ extern "C" {
 #define MAX_ROMS 4
 #endif
 
+#ifdef BOOT_CONFIG_OPROG
+#include "oprog/rbootconf.h"
+#endif /* BOOT_CONFIG_OPROG */
+
 /** @brief  Structure containing rBoot configuration
  *  @note   ROM addresses must be multiples of 0x1000 (flash sector aligned).
  *          Without BOOT_BIG_FLASH only the first 8Mbit (1MB) of the chip will
@@ -97,6 +103,11 @@ typedef struct {
 	uint8 count;           ///< Quantity of ROMs available to boot
 	uint8 unused[2];       ///< Padding (not used)
 	uint32 roms[MAX_ROMS]; ///< Flash addresses of each ROM
+
+#ifdef BOOT_CONFIG_OPROG
+	rboot_config_oprog oprog;
+#endif
+
 #ifdef BOOT_CONFIG_CHKSUM
 	uint8 chksum;          ///< Checksum of this configuration structure (if BOOT_CONFIG_CHKSUM defined)
 #endif

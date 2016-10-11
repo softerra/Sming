@@ -27,31 +27,36 @@ LDFLAGS   = -nostdlib -Wl,--no-check-sections -u call_user_start -Wl,-static
 LD_SCRIPT = eagle.app.v6.ld
 
 E2_OPTS = -quiet -bin -boot0
+DEFS =
 
+ifeq ($(RBOOT_CONFIG_OPROG),1)
+	DEFS += -DBOOT_CONFIG_OPROG
+endif
 ifeq ($(RBOOT_BIG_FLASH),1)
-	CFLAGS += -DBOOT_BIG_FLASH
+	DEFS += -DBOOT_BIG_FLASH
 endif
 ifneq ($(RBOOT_DELAY_MICROS),)
-	CFLAGS += -DBOOT_DELAY_MICROS=$(RBOOT_DELAY_MICROS)
+	DEFS += -DBOOT_DELAY_MICROS=$(RBOOT_DELAY_MICROS)
 endif
 ifeq ($(RBOOT_INTEGRATION),1)
-	CFLAGS += -DRBOOT_INTEGRATION
+	DEFS += -DRBOOT_INTEGRATION
 endif
 ifeq ($(RBOOT_RTC_ENABLED),1)
-	CFLAGS += -DBOOT_RTC_ENABLED
+	DEFS += -DBOOT_RTC_ENABLED
 endif
 ifeq ($(RBOOT_CONFIG_CHKSUM),1)
-	CFLAGS += -DBOOT_CONFIG_CHKSUM
+	DEFS += -DBOOT_CONFIG_CHKSUM
 endif
 ifeq ($(RBOOT_GPIO_ENABLED),1)
-	CFLAGS += -DBOOT_GPIO_ENABLED
+	DEFS += -DBOOT_GPIO_ENABLED
 endif
 ifneq ($(RBOOT_GPIO_NUMBER),)
-	CFLAGS += -DBOOT_GPIO_NUM=$(RBOOT_GPIO_NUMBER)
+	DEFS += -DBOOT_GPIO_NUM=$(RBOOT_GPIO_NUMBER)
 endif
 ifeq ($(RBOOT_IROM_CHKSUM),1)
-	CFLAGS += -DBOOT_IROM_CHKSUM
+	DEFS += -DBOOT_IROM_CHKSUM
 endif
+CFLAGS += $(DEFS)
 ifneq ($(RBOOT_EXTRA_INCDIR),)
 	CFLAGS += $(addprefix -I,$(RBOOT_EXTRA_INCDIR))
 endif
@@ -90,7 +95,7 @@ endif
 .SECONDARY:
 
 #all: $(RBOOT_BUILD_BASE) $(RBOOT_FW_BASE) $(RBOOT_FW_BASE)/rboot.bin $(RBOOT_FW_BASE)/testload1.bin $(RBOOT_FW_BASE)/testload2.bin
-all: $(RBOOT_BUILD_BASE) $(RBOOT_FW_BASE) $(RBOOT_FW_BASE)/rboot.bin
+all: $(RBOOT_BUILD_BASE) $(RBOOT_FW_BASE) $(RBOOT_FW_BASE)/rboot.bin $(RBOOT_FW_BASE)/rbootconf
 
 $(RBOOT_BUILD_BASE):
 	mkdir -p $@
@@ -125,6 +130,10 @@ $(RBOOT_BUILD_BASE)/%.elf: $(RBOOT_BUILD_BASE)/%.o
 $(RBOOT_FW_BASE)/%.bin: $(RBOOT_BUILD_BASE)/%.elf
 	@echo "E2 $@"
 	$(Q) $(ESPTOOL2) $(E2_OPTS) $< $@ .text .rodata
+
+$(RBOOT_FW_BASE)/rbootconf: oprog/rbootconf.c oprog/rbootconf.h
+	@echo "Build $@"
+	$(Q) gcc $(DEFS) -I. $^ -o $@
 
 clean:
 	@echo "RM $(RBOOT_BUILD_BASE) $(RBOOT_FW_BASE)"

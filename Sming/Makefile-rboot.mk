@@ -9,6 +9,7 @@
 ### Defaults ###
 
 # rBoot options, overwrite them in the projects Makefile-user.mk
+RBOOT_CONFIG_OPROG ?= 0
 RBOOT_BIG_FLASH  ?= 1
 RBOOT_TWO_ROMS   ?= 0
 RBOOT_RTC_ENABLED ?= 0
@@ -257,13 +258,11 @@ RBOOT_LD_1	:= $(addprefix -T,$(RBOOT_LD_1))
 # extra flags
 CFLAGS += -DRBOOT_INTEGRATION
 
-# reset rboot config's sector
-RBOOT_CONFIG = $(SDK_BASE)/bin/blank.bin
-
 RBOOT_BIN := $(FW_BASE)/rboot.bin
 RBOOT_BUILD_BASE := $(abspath $(BUILD_BASE))
 RBOOT_FW_BASE := $(abspath $(FW_BASE))
 # these are exported for use by the rBoot Makefile
+export RBOOT_CONFIG_OPROG
 export RBOOT_BIG_FLASH
 export RBOOT_BUILD_BASE
 export RBOOT_FW_BASE
@@ -272,6 +271,16 @@ export SPI_SIZE
 export SPI_MODE
 export SPI_SPEED
 export ESPTOOL2
+
+# reset rboot config's sector
+RBOOT_CONFIG = $(SDK_BASE)/bin/blank.bin
+
+ifeq ($(RBOOT_CONFIG_OPROG),1)
+	# Oprog-specific config enabled
+	CFLAGS += -DBOOT_CONFIG_OPROG
+	# override rboot config
+	RBOOT_CONFIG = $(FW_BASE)/rboot-config.bin
+endif
 
 # multiple roms per 1mb block?
 ifeq ($(RBOOT_TWO_ROMS),1)
@@ -376,6 +385,9 @@ endif
 flash: all
 	$(vecho) "Killing Terminal to free $(COM_PORT)"
 	-$(Q) $(KILL_TERM)
+ifeq ($(RBOOT_CONFIG_OPROG),1)
+	$(FW_BASE)/rbootconf -o $(RBOOT_CONFIG) -n "$(OPROG_NODE_NAME)" -a "$(OPROG_NODE_AP_SSID)" -p "$(OPROG_NODE_AP_PASS)"
+endif
 ifeq ($(DISABLE_SPIFFS), 1)
 # flashes rboot and first rom
 	$(ESPTOOL) -p $(COM_PORT) -b $(COM_SPEED_ESPTOOL) write_flash $(flashimageoptions) 0x00000 $(RBOOT_BIN) 0x1000 $(RBOOT_CONFIG) 0x02000 $(RBOOT_ROM_0)
