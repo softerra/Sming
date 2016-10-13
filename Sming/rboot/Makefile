@@ -28,6 +28,9 @@ LD_SCRIPT = eagle.app.v6.ld
 
 E2_OPTS = -quiet -bin -boot0
 
+ifeq ($(RBOOT_CONFIG_OPROG),1)
+	CFLAGS += -DBOOT_CONFIG_OPROG
+endif
 ifeq ($(RBOOT_BIG_FLASH),1)
 	CFLAGS += -DBOOT_BIG_FLASH
 endif
