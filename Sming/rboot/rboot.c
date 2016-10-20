@@ -267,6 +267,7 @@ uint32 NOINLINE find_image(void) {
 
 	rboot_config *romconf = (rboot_config*)buffer;
 	rom_header *header = (rom_header*)buffer;
+	int config_need_init = 0;
 
 #if defined BOOT_DELAY_MICROS && BOOT_DELAY_MICROS > 0
 	// delay to slow boot (help see messages when debugging)
@@ -359,9 +360,26 @@ uint32 NOINLINE find_image(void) {
 		|| romconf->chksum != calc_chksum((uint8*)romconf, (uint8*)&romconf->chksum)
 #endif
 		) {
-		// create a default config for a standard 2 rom setup
-		ets_printf("Writing default boot config.\r\n");
-		ets_memset(romconf, 0x00, sizeof(rboot_config));
+		config_need_init = 1;
+	}
+
+	if (config_need_init
+#ifdef BOOT_CONFIG_OPROG
+		|| (romconf->count == 1) /* pre-flashed Oprog configuration */
+#endif
+			) {
+#ifdef BOOT_CONFIG_OPROG
+		if (config_need_init) {
+#endif
+			// create a default config for a standard 2 rom setup
+			ets_printf("Writing default boot config.\r\n");
+			ets_memset(romconf, 0x00, sizeof(rboot_config));
+
+#ifdef BOOT_CONFIG_OPROG
+		} else {
+			ets_printf("Writing corrected boot config.\r\n");
+		}
+#endif
 		romconf->magic = BOOT_CONFIG_MAGIC;
 		romconf->version = BOOT_CONFIG_VERSION;
 		romconf->count = 2;
