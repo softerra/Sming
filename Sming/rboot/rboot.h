@@ -87,9 +87,16 @@ typedef unsigned short int uint16;
 #define OPROG_NODE_NAME_SIZE_MAX	32  /* =max of SSID length, see 802.11-2007, we use 31 + terminating 0 */
 #define OPROG_AP_PASS_SIZE_MAX		32  /* we use 31 + terminating 0 */
 
+#define OPROG_BCONF_INIT		0x0001	///< Config contains pre-flashed settings
+#define OPROG_BCONF_NODE_INFO	0x0002	///< Config contains information about Oprog-node installed (app_version and node_name)
+
 typedef struct {
-	uint16 magic;
+	uint16 magic;	///< Magic, identifies rBoot Oprog data, used uint16 to distinct it from uint8 chksum
+	uint16 flags;
+
+	uint32 app_version; ///< LE value of app verison
 	char node_name[OPROG_NODE_NAME_SIZE_MAX];
+
 	char ap_ssid[32];
 	char ap_pass[OPROG_AP_PASS_SIZE_MAX];
 } rboot_config_oprog;
