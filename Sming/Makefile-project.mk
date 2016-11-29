@@ -145,6 +145,7 @@ LIBS		= microc microgcc hal phy pp net80211 lwip wpa main sming crypto pwm smart
 
 # compiler flags using during compilation of source files
 CFLAGS		= -Wpointer-arith -Wundef -Werror -Wl,-EL -nostdlib -mlongcalls -mtext-section-literals -finline-functions -fdata-sections -ffunction-sections -D__ets__ -DICACHE_FLASH -DARDUINO=106 -DCOM_SPEED_SERIAL=$(COM_SPEED_SERIAL) $(USER_CFLAGS)
+CFLAGS		+= -DSMING_REV=$(SMING_REV)
 ifeq ($(ENABLE_GDB), 1)
 	CFLAGS += -Og -ggdb -DGDBSTUB_FREERTOS=0 -DENABLE_GDB=1
 	MODULES		 += $(THIRD_PARTY_DIR)/gdbstub
