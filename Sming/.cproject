@@ -74,7 +74,7 @@
 			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
 		</cconfiguration>
 		<cconfiguration id="cdt.managedbuild.toolchain.gnu.mingw.base.1135534147.1550331779">
-			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="cdt.managedbuild.toolchain.gnu.mingw.base.1135534147.1550331779" moduleId="org.eclipse.cdt.core.settings" name="no-debugf">
+			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="cdt.managedbuild.toolchain.gnu.mingw.base.1135534147.1550331779" moduleId="org.eclipse.cdt.core.settings" name="with-debugf">
 				<externalSettings/>
 				<extensions>
 					<extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
@@ -86,13 +86,13 @@
 				</extensions>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-				<configuration artifactName="${ProjName}" buildProperties="" description="" id="cdt.managedbuild.toolchain.gnu.mingw.base.1135534147.1550331779" name="no-debugf" parent="org.eclipse.cdt.build.core.emptycfg">
+				<configuration artifactName="${ProjName}" buildProperties="" description="" id="cdt.managedbuild.toolchain.gnu.mingw.base.1135534147.1550331779" name="with-debugf" parent="org.eclipse.cdt.build.core.emptycfg">
 					<folderInfo id="cdt.managedbuild.toolchain.gnu.mingw.base.1135534147.1550331779." name="/" resourcePath="">
 						<toolChain id="cdt.managedbuild.toolchain.gnu.cross.base.1580621477" name="Cross GCC" superClass="cdt.managedbuild.toolchain.gnu.cross.base">
 							<option id="cdt.managedbuild.option.gnu.cross.prefix.1381835310" name="Prefix" superClass="cdt.managedbuild.option.gnu.cross.prefix"/>
 							<option id="cdt.managedbuild.option.gnu.cross.path.226933053" name="Path" superClass="cdt.managedbuild.option.gnu.cross.path"/>
 							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="cdt.managedbuild.targetPlatform.gnu.cross.821714899" isAbstract="false" osList="all" superClass="cdt.managedbuild.targetPlatform.gnu.cross"/>
-							<builder arguments="-j4 USER_CFLAGS=-DDISABLE_DEBUGF V=1" command="make" id="cdt.managedbuild.builder.gnu.cross.1102734870" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="cdt.managedbuild.builder.gnu.cross"/>
+							<builder arguments="-j4 ENABLE_DEBUGF=1 V=1" autoBuildTarget="all" cleanBuildTarget="clean" command="make" enableAutoBuild="false" enableCleanBuild="true" enabledIncrementalBuild="true" id="cdt.managedbuild.builder.gnu.cross.1102734870" incrementalBuildTarget="all" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" parallelBuildOn="false" superClass="cdt.managedbuild.builder.gnu.cross"/>
 							<tool id="cdt.managedbuild.tool.gnu.cross.c.compiler.901949682" name="Cross GCC Compiler" superClass="cdt.managedbuild.tool.gnu.cross.c.compiler">
 								<option id="gnu.c.compiler.option.include.paths.466459185" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;../${ESP_HOME}&quot;"/>
@@ -102,8 +102,8 @@
 									<listOptionValue builtIn="false" value="__ets__"/>
 									<listOptionValue builtIn="false" value="ARDUINO=106"/>
 									<listOptionValue builtIn="false" value="ICACHE_FLASH"/>
-									<listOptionValue builtIn="false" value="DISABLE_DEBUGF"/>
 									<listOptionValue builtIn="false" value="BOOT_CONFIG_OPROG"/>
+									<listOptionValue builtIn="false" value="ENABLE_DEBUGF"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.67966043" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
@@ -118,8 +118,8 @@
 									<listOptionValue builtIn="false" value="__ets__"/>
 									<listOptionValue builtIn="false" value="ARDUINO=106"/>
 									<listOptionValue builtIn="false" value="ICACHE_FLASH"/>
-									<listOptionValue builtIn="false" value="DISABLE_DEBUGF"/>
 									<listOptionValue builtIn="false" value="BOOT_CONFIG_OPROG"/>
+									<listOptionValue builtIn="false" value="ENABLE_DEBUGF"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.336712990" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>
@@ -156,6 +156,9 @@
 		<configuration configurationName="no-debugf"/>
 		<configuration configurationName="Sming"/>
 		<configuration configurationName="Default">
+			<resource resourceType="PROJECT" workspacePath="/SmingFramework"/>
+		</configuration>
+		<configuration configurationName="with-debugf">
 			<resource resourceType="PROJECT" workspacePath="/SmingFramework"/>
 		</configuration>
 	</storageModule>

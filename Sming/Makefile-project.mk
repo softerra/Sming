@@ -153,6 +153,9 @@ ifeq ($(ENABLE_GDB), 1)
 else
 	CFLAGS += -Os -g
 endif
+ifeq ($(ENABLE_DEBUGF), 1)
+	CFLAGS += -DENABLE_DEBUGF
+endif
 CXXFLAGS	= $(CFLAGS) -fno-rtti -fno-exceptions -std=c++11 -felide-constructors
 
 # we will use global WiFi settings from Eclipse Environment Variables, if possible
