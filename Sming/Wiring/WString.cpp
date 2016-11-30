@@ -631,17 +631,19 @@ void String::replace(const String& find, const String& replace)
   else if (diff < 0)
   {
     char *writeTo = buffer;
+    uint16_t readLen = len;
     while ((foundAt = strstr(readFrom, find.buffer)) != NULL)
     {
       unsigned int n = foundAt - readFrom;
-      memcpy(writeTo, readFrom, n);
+      memmove(writeTo, readFrom, n);
       writeTo += n;
       memcpy(writeTo, replace.buffer, replace.len);
       writeTo += replace.len;
       readFrom = foundAt + find.len;
       len += diff;
     }
-    strcpy(writeTo, readFrom);
+    readLen = readLen - (readFrom - buffer);
+    memmove(writeTo, readFrom, readLen +1);
   }
   else
   {
@@ -708,7 +710,7 @@ void String::trim(void)
   char *end = buffer + len - 1;
   while (isspace(*end) && end >= begin) end--;
   len = end + 1 - begin;
-  if (begin > buffer) memcpy(buffer, begin, len);
+  if (begin > buffer) memmove(buffer, begin, len);
   buffer[len] = 0;
 }
 

@@ -43,6 +43,15 @@ SoftI2cMaster::SoftI2cMaster(uint8_t sdaPin, uint8_t sclPin) {
   pinMode(sclPin_, OUTPUT);
   digitalWrite(sclPin_, HIGH);
 }
+/**
+ * when master gets deleted:
+ * issue stop and turn the pins to INPUT('safe') state
+ */
+SoftI2cMaster::~SoftI2cMaster() {
+	stop();
+	pinMode(sdaPin_, INPUT);
+	pinMode(sdaPin_, INPUT);
+}
 //------------------------------------------------------------------------------
 /** Read a byte and send Ack if more reads follow else Nak to terminate read.
  *

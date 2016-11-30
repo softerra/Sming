@@ -152,12 +152,16 @@ LIBS		= microc microgcc hal phy pp net80211 lwip wpa main $(LIBSMING) crypto pwm
 
 # compiler flags using during compilation of source files
 CFLAGS		= -Wpointer-arith -Wundef -Werror -Wl,-EL -nostdlib -mlongcalls -mtext-section-literals -finline-functions -fdata-sections -ffunction-sections -D__ets__ -DICACHE_FLASH -DARDUINO=106 -DCOM_SPEED_SERIAL=$(COM_SPEED_SERIAL) $(USER_CFLAGS)
+CFLAGS		+= -DSMING_REV=$(SMING_REV)
 ifeq ($(ENABLE_GDB), 1)
 	CFLAGS += -Og -ggdb -DGDBSTUB_FREERTOS=0 -DENABLE_GDB=1
 	MODULES		 += $(THIRD_PARTY_DIR)/gdbstub
 	EXTRA_INCDIR += $(THIRD_PARTY_DIR)/gdbstub
 else
 	CFLAGS += -Os -g
+endif
+ifeq ($(ENABLE_DEBUGF), 1)
+	CFLAGS += -DENABLE_DEBUGF
 endif
 CXXFLAGS	= $(CFLAGS) -fno-rtti -fno-exceptions -std=c++11 -felide-constructors
 
@@ -304,7 +308,7 @@ spiff_update: spiff_clean $(SPIFF_BIN_OUT)
 
 $(TARGET_OUT): $(APP_AR)
 	$(vecho) "LD $@"	
-	$(Q) $(LD) -L$(USER_LIBDIR) -L$(SDK_LIBDIR) $(LD_SCRIPT) $(LDFLAGS) -Wl,--start-group $(LIBS) $(APP_AR) -Wl,--end-group -o $@
+	$(Q) $(LD) -L$(USER_LIBDIR) -L$(SDK_LIBDIR) $(LD_SCRIPT) $(LDFLAGS) -Wl,--start-group $(LIBS) $(APP_AR) -Wl,--end-group $(TAIL_LDFLAGS) -o $@
 
 	$(vecho) ""	
 	$(vecho) "#Memory / Section info:"	

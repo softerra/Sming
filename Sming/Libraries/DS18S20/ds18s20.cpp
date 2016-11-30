@@ -32,6 +32,7 @@ DS18S20::DS18S20()
 
 DS18S20::~DS18S20()
 {
+	DelaysTimer.stop();
 }
 
 void DS18S20::Init(uint8_t pinOneWire)

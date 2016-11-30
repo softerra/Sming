@@ -8,35 +8,27 @@
 #pragma once
 
 #include "JsonArray.hpp"
-#include "JsonObject.hpp"
 #include "JsonArraySubscript.hpp"
+#include "JsonObject.hpp"
 
 namespace ArduinoJson {
 
-inline JsonArraySubscript JsonArray::operator[](size_t index) {
-  return JsonArraySubscript(*this, index);
+inline JsonVariant::JsonVariant(JsonArray &array) {
+  if (array.success()) {
+    _type = Internals::JSON_ARRAY;
+    _content.asArray = &array;
+  } else {
+    _type = Internals::JSON_UNDEFINED;
+  }
 }
 
-inline JsonVariant JsonArray::operator[](size_t index) const {
-  return get(index);
-}
-
-template <typename TValue>
-inline bool JsonArray::addNode(TValue value) {
-  node_type *node = addNewNode();
-  return node != NULL && setNodeValue<TValue>(node, value);
-}
-
-template <typename TValue>
-inline bool JsonArray::setNodeAt(size_t index, TValue value) {
-  node_type *node = getNodeAt(index);
-  return node != NULL && setNodeValue<TValue>(node, value);
-}
-
-template <typename TValue>
-inline bool JsonArray::setNodeValue(node_type *node, TValue value) {
-  node->content = value;
-  return true;
+inline JsonVariant::JsonVariant(JsonObject &object) {
+  if (object.success()) {
+    _type = Internals::JSON_OBJECT;
+    _content.asObject = &object;
+  } else {
+    _type = Internals::JSON_UNDEFINED;
+  }
 }
 
 template <>
@@ -47,36 +39,23 @@ inline bool JsonArray::setNodeValue(node_type *node, String &value) {
   return true;
 }
 
-inline JsonVariant JsonArray::get(size_t index) const {
-  node_type *node = getNodeAt(index);
-  return node ? node->content : JsonVariant();
-}
-
-template <typename T>
-inline T JsonArray::get(size_t index) const {
-  node_type *node = getNodeAt(index);
-  return node ? node->content.as<T>() : JsonVariant::invalid<T>();
-}
-
-template <typename T>
-inline bool JsonArray::is(size_t index) const {
-  node_type *node = getNodeAt(index);
-  return node ? node->content.is<T>() : false;
-}
-
-template <typename TImplem>
-inline const JsonArraySubscript JsonVariantBase<TImplem>::operator[](
-    int index) const {
-  return asArray()[index];
-}
-
 template <>
-inline JsonArray &JsonVariant::invalid<JsonArray &>() {
+inline JsonArray &JsonVariant::defaultValue<JsonArray>() {
   return JsonArray::invalid();
 }
 
 template <>
-inline JsonArray const &JsonVariant::invalid<JsonArray const &>() {
+inline JsonArray &JsonVariant::defaultValue<JsonArray &>() {
+  return JsonArray::invalid();
+}
+
+template <>
+inline const JsonArray &JsonVariant::defaultValue<const JsonArray>() {
+  return JsonArray::invalid();
+}
+
+template <>
+inline const JsonArray &JsonVariant::defaultValue<const JsonArray &>() {
   return JsonArray::invalid();
 }
 
