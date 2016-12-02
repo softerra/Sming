@@ -15,14 +15,14 @@ namespace ArduinoJson {
 
 template <>
 inline bool JsonObject::setNodeValue(node_type *node, String &value) {
-  char *dup = _buffer->strdup(value);
+  const char *dup = _buffer->strdup(value);
   node->content.value = dup;
   return dup != NULL;
 }
 
 template <>
 inline bool JsonObject::setNodeValue(node_type *node, const String &value) {
-  char *dup = _buffer->strdup(value);
+  const char *dup = _buffer->strdup(value);
   node->content.value = dup;
   return dup != NULL;
 }
