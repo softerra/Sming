@@ -20,7 +20,7 @@
 							<option id="cdt.managedbuild.option.gnu.cross.prefix.1865912994" name="Prefix" superClass="cdt.managedbuild.option.gnu.cross.prefix"/>
 							<option id="cdt.managedbuild.option.gnu.cross.path.1823876896" name="Path" superClass="cdt.managedbuild.option.gnu.cross.path"/>
 							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="cdt.managedbuild.targetPlatform.gnu.cross.712625349" isAbstract="false" osList="all" superClass="cdt.managedbuild.targetPlatform.gnu.cross"/>
-							<builder id="cdt.managedbuild.builder.gnu.cross.2019070319" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="cdt.managedbuild.builder.gnu.cross"/>
+							<builder arguments="-j4 SMING_RELEASE=1" command="make" id="cdt.managedbuild.builder.gnu.cross.2019070319" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="cdt.managedbuild.builder.gnu.cross"/>
 							<tool id="cdt.managedbuild.tool.gnu.cross.c.compiler.1904387915" name="Cross GCC Compiler" superClass="cdt.managedbuild.tool.gnu.cross.c.compiler">
 								<option id="gnu.c.compiler.option.include.paths.378707889" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;../${ESP_HOME}&quot;"/>
@@ -31,6 +31,7 @@
 									<listOptionValue builtIn="false" value="ARDUINO=106"/>
 									<listOptionValue builtIn="false" value="ICACHE_FLASH"/>
 									<listOptionValue builtIn="false" value="BOOT_CONFIG_OPROG"/>
+									<listOptionValue builtIn="false" value="SMING_RELEASE=1"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.376550230" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
@@ -46,6 +47,7 @@
 									<listOptionValue builtIn="false" value="ARDUINO=106"/>
 									<listOptionValue builtIn="false" value="ICACHE_FLASH"/>
 									<listOptionValue builtIn="false" value="BOOT_CONFIG_OPROG"/>
+									<listOptionValue builtIn="false" value="SMING_RELEASE=1"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.1606285752" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>
@@ -92,7 +94,7 @@
 							<option id="cdt.managedbuild.option.gnu.cross.prefix.1381835310" name="Prefix" superClass="cdt.managedbuild.option.gnu.cross.prefix"/>
 							<option id="cdt.managedbuild.option.gnu.cross.path.226933053" name="Path" superClass="cdt.managedbuild.option.gnu.cross.path"/>
 							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="cdt.managedbuild.targetPlatform.gnu.cross.821714899" isAbstract="false" osList="all" superClass="cdt.managedbuild.targetPlatform.gnu.cross"/>
-							<builder arguments="-j4 ENABLE_DEBUGF=1 V=1" autoBuildTarget="all" cleanBuildTarget="clean" command="make" enableAutoBuild="false" enableCleanBuild="true" enabledIncrementalBuild="true" id="cdt.managedbuild.builder.gnu.cross.1102734870" incrementalBuildTarget="all" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" parallelBuildOn="false" superClass="cdt.managedbuild.builder.gnu.cross"/>
+							<builder arguments="-j4 V=1" autoBuildTarget="all" cleanBuildTarget="clean" command="make" enableAutoBuild="false" enableCleanBuild="true" enabledIncrementalBuild="true" id="cdt.managedbuild.builder.gnu.cross.1102734870" incrementalBuildTarget="all" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" parallelBuildOn="false" superClass="cdt.managedbuild.builder.gnu.cross"/>
 							<tool id="cdt.managedbuild.tool.gnu.cross.c.compiler.901949682" name="Cross GCC Compiler" superClass="cdt.managedbuild.tool.gnu.cross.c.compiler">
 								<option id="gnu.c.compiler.option.include.paths.466459185" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;../${ESP_HOME}&quot;"/>
@@ -103,7 +105,6 @@
 									<listOptionValue builtIn="false" value="ARDUINO=106"/>
 									<listOptionValue builtIn="false" value="ICACHE_FLASH"/>
 									<listOptionValue builtIn="false" value="BOOT_CONFIG_OPROG"/>
-									<listOptionValue builtIn="false" value="ENABLE_DEBUGF"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.67966043" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
@@ -119,7 +120,6 @@
 									<listOptionValue builtIn="false" value="ARDUINO=106"/>
 									<listOptionValue builtIn="false" value="ICACHE_FLASH"/>
 									<listOptionValue builtIn="false" value="BOOT_CONFIG_OPROG"/>
-									<listOptionValue builtIn="false" value="ENABLE_DEBUGF"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.336712990" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>

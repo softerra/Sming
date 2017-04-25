@@ -124,16 +124,30 @@ MODULES		= system system/helpers Wiring SmingCore appinit $(filter %/, $(wildcar
 EXTRA_INCDIR    = include system/include Wiring Libraries SmingCore $(SDK_BASE)/../include
 
 # Place a file that should exist in a submodule that is fetched separately
+# => rboot 
 THIRD_PARTY_DATA = third-party/rboot/Makefile
-
-# third-party source mapping starts here 
-# => rBoot
 EXTRA_INCDIR += third-party/rboot third-party/rboot/appcode 
+
+# => spiffs
+THIRD_PARTY_DATA += third-party/spiffs/makefile
+MODULES		     += third-party/spiffs/src
+EXTRA_INCDIR     += third-party/spiffs/src
+
 # => esp-gdbstub
 ifeq ($(ENABLE_GDB), 1)
 	THIRD_PARTY_DATA += third-party/esp-gdbstub/Makefile
 	MODULES		 += third-party/esp-gdbstub
 	EXTRA_INCDIR += third-party/esp-gdbstub
+else ifneq ($(SMING_RELEASE),1)
+	MODULES += gdb
+endif
+
+# => umm_malloc (custom heap allocation)
+ifeq ($(ENABLE_CUSTOM_HEAP), 1)
+	THIRD_PARTY_DATA += third-party/umm_malloc/Makefile
+	MODULES      += custom_heap third-party/umm_malloc/src
+	EXTRA_INCDIR += third-party/umm_malloc/src third-party/umm_malloc/includes/c-helper-macros
+	CUSTOM_TARGETS += $(USER_LIBDIR)/libmainmm.a
 endif
 
 # libraries used in this project, mainly provided by the SDK
@@ -147,18 +161,19 @@ endif
 
 # compiler flags using during compilation of source files. Add '-pg' for debugging
 CFLAGS		= -Wpointer-arith -Wundef -Werror -Wl,-EL -nostdlib -mlongcalls -mtext-section-literals -finline-functions -fdata-sections -ffunction-sections -D__ets__ -DICACHE_FLASH -DARDUINO=106 -DCOM_SPEED_SERIAL=$(COM_SPEED_SERIAL)
-ifeq ($(ENABLE_GDB), 1)
+ifeq ($(SMING_RELEASE),1)
+	# See: https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html
+	#      for full list of optimization options
+	CFLAGS += -Os -DSMING_RELEASE=1
+else ifeq ($(ENABLE_GDB), 1)
 	CFLAGS += -Og -ggdb -DGDBSTUB_FREERTOS=0 -DENABLE_GDB=1
 else
 	CFLAGS += -Os -g
 endif
-ifeq ($(ENABLE_DEBUGF), 1)
-	CFLAGS += -DENABLE_DEBUGF
-endif
 CXXFLAGS	= $(CFLAGS) -fno-rtti -fno-exceptions -std=c++11 -felide-constructors
 
 # linker flags used to generate the main object file
-LDFLAGS		= -nostdlib -u call_user_start -Wl,-static -Wl,--gc-sections
+LDFLAGS		= -nostdlib -u call_user_start -Wl,-static -Wl,--gc-sections -Wl,-wrap,system_restart_local 
 
 # linker script used for the above linkier step
 LD_PATH     = compiler/ld/
@@ -271,6 +286,13 @@ endif
 ifeq ($(ENABLE_SSL), 1)
 $(USER_LIBDIR)/libaxtls.a:
 	$(Q) $(MAKE) -C third-party/axtls-8266 -e V=$(V) BIN_DIR="$(SMING_HOME)/$(USER_LIBDIR)"
+endif
+
+ifeq ($(ENABLE_CUSTOM_HEAP), 1)
+$(USER_LIBDIR)/libmainmm.a: $(addprefix $(SDK_LIBDIR)/,libmain.a)
+	$(vecho) "Enabling custom heap implementation"
+	$(Q) cp $^ $@ 
+	$(Q) $(AR) -d $@ mem_manager.o
 endif
 
 spiffy: spiffy/spiffy

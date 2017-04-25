@@ -28,7 +28,11 @@ StationClass::~StationClass()
 
 void StationClass::enable(bool enabled, bool save)
 {
-	uint8 mode = wifi_get_opmode() & ~STATION_MODE;
+	uint8 mode;
+	if (save)
+		mode = wifi_get_opmode_default() & ~STATION_MODE;
+	else
+		mode = wifi_get_opmode() & ~STATION_MODE;
 	if (enabled) mode |= STATION_MODE;
 	if (save)
 		wifi_set_opmode(mode);
@@ -41,7 +45,7 @@ bool StationClass::isEnabled()
 	return wifi_get_opmode() & STATION_MODE;
 }
 
-bool StationClass::config(String ssid, String password, bool autoConnectOnStartup /* = true*/)
+bool StationClass::config(String ssid, String password, bool autoConnectOnStartup /* = true*/, bool save /* = true */)
 {
 	station_config config = {0};
 
@@ -50,10 +54,8 @@ bool StationClass::config(String ssid, String password, bool autoConnectOnStartu
 
 	bool enabled = isEnabled();
 	bool dhcp = isEnabledDHCP();
-	enable(true); // Power on for configuration
+	if (!enabled) enable(true); // Power on for configuration
 
-	wifi_station_disconnect();
-	if (dhcp) enableDHCP(false);
 	bool cfgreaded = wifi_station_get_config(&config);
 	if (!cfgreaded) debugf("Can't read station configuration!");
 
@@ -67,13 +69,21 @@ bool StationClass::config(String ssid, String password, bool autoConnectOnStartu
 		strcpy((char*)config.password, password.c_str());
 
 		noInterrupts();
-		if(!wifi_station_set_config(&config))
+
+		bool success = false;
+		if(save) {
+			success = wifi_station_set_config(&config);
+		}
+		else {
+			success = wifi_station_set_config_current(&config);
+		}
+
+		if(!success)
 		{
 			interrupts();
 			debugf("Can't set station configuration!");
-			wifi_station_connect();
-			enableDHCP(dhcp);
-			enable(enabled);
+			if (!dhcp) enableDHCP(dhcp);
+			if (!enabled) enable(enabled);
 			return false;
 		}
 		debugf("Station configuration was updated to: %s", ssid.c_str());
@@ -82,9 +92,8 @@ bool StationClass::config(String ssid, String password, bool autoConnectOnStartu
 	}
 	else
 		debugf("Station configuration is: %s", ssid.c_str());
-	wifi_station_connect();
-	enableDHCP(dhcp);
-	enable(enabled);
+	if (!dhcp) enableDHCP(dhcp);
+	if (!enabled) enable(enabled);
 
 	wifi_station_set_auto_connect(autoConnectOnStartup);
 

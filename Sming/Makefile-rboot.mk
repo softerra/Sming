@@ -122,6 +122,8 @@ export COMPILE := gcc
 export PATH := $(ESP_HOME)/xtensa-lx106-elf/bin:$(PATH)
 XTENSA_TOOLS_ROOT := $(ESP_HOME)/xtensa-lx106-elf/bin
 
+STRIP   := $(XTENSA_TOOLS_ROOT)/xtensa-lx106-elf-strip
+
 CURRENT_DIR := $(dir $(abspath $(firstword $(MAKEFILE_LIST))))
 
 SPIFF_FILES ?= files
@@ -147,35 +149,53 @@ endif
 MODULES      ?= app     # default to app if not set by user
 MODULES      += $(THIRD_PARTY_DIR)/rboot/appcode
 EXTRA_INCDIR ?= include # default to include if not set by user
-EXTRA_INCDIR += $(SMING_HOME)/include $(SMING_HOME)/ $(SMING_HOME)/system/include $(SMING_HOME)/Wiring $(SMING_HOME)/Libraries $(SMING_HOME)/SmingCore $(SDK_BASE)/../include $(THIRD_PARTY_DIR)/rboot $(THIRD_PARTY_DIR)/rboot/appcode
+EXTRA_INCDIR += $(SMING_HOME)/include $(SMING_HOME)/ $(SMING_HOME)/system/include $(SMING_HOME)/Wiring $(SMING_HOME)/Libraries $(SMING_HOME)/SmingCore $(SMING_HOME)/Services/SpifFS $(SDK_BASE)/../include $(THIRD_PARTY_DIR)/rboot $(THIRD_PARTY_DIR)/rboot/appcode $(THIRD_PARTY_DIR)/spiffs/src
+
+USER_LIBDIR  = $(SMING_HOME)/compiler/lib/
 
 # compiler flags using during compilation of source files
 CFLAGS		= -Wpointer-arith -Wundef -Werror -Wl,-EL -nostdlib -mlongcalls -mtext-section-literals -finline-functions -fdata-sections -ffunction-sections -D__ets__ -DICACHE_FLASH -DARDUINO=106 -DCOM_SPEED_SERIAL=$(COM_SPEED_SERIAL) $(USER_CFLAGS)
 CFLAGS		+= -DSMING_REV=$(SMING_REV)
-ifeq ($(ENABLE_GDB), 1)
+ifeq ($(SMING_RELEASE),1)
+	# See: https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html
+	#      for full list of optimization options
+	CFLAGS += -Os -DSMING_RELEASE=1
+else ifeq ($(ENABLE_GDB), 1)
 	CFLAGS += -Og -ggdb -DGDBSTUB_FREERTOS=0 -DENABLE_GDB=1
 	MODULES		 += $(THIRD_PARTY_DIR)/gdbstub
 	EXTRA_INCDIR += $(THIRD_PARTY_DIR)/gdbstub
+	STRIP := @true
 else
 	CFLAGS += -Os -g
-endif
-ifeq ($(ENABLE_DEBUGF), 1)
-	CFLAGS += -DENABLE_DEBUGF
+	STRIP := @true
 endif
 CXXFLAGS	= $(CFLAGS) -fno-rtti -fno-exceptions -std=c++11 -felide-constructors
+
+ENABLE_CUSTOM_HEAP ?= 0
+ 
+LIBMAIN = main
+ifeq ($(ENABLE_CUSTOM_HEAP),1)
+	LIBMAIN = mainmm
+endif
+
+LIBMAIN = main
+LIBMAIN_SRC = $(addprefix $(SDK_LIBDIR)/,libmain.a)
+
+ifeq ($(ENABLE_CUSTOM_HEAP),1)
+	LIBMAIN = mainmm
+	LIBMAIN_SRC := $(USER_LIBDIR)lib$(LIBMAIN).a
+endif
 
 # libmain must be modified for rBoot big flash support (just one symbol gets weakened)
 ifeq ($(RBOOT_BIG_FLASH),1)
 	LIBMAIN = main2
-	LIBMAIN_SRC = $(addprefix $(SDK_LIBDIR)/,libmain.a)
 	LIBMAIN_DST = $(addprefix $(BUILD_BASE)/,libmain2.a)
 	CFLAGS += -DBOOT_BIG_FLASH
 else
-	LIBMAIN = main
 	LIBMAIN_DST = $()
 endif
 # libraries used in this project, mainly provided by the SDK
-USER_LIBDIR = $(SMING_HOME)/compiler/lib/
+
 LIBS		= microc microgcc hal phy pp net80211 lwip wpa $(LIBMAIN) $(LIBSMING) crypto pwm smartconfig $(EXTRA_LIBS)
 
 # SSL support using axTLS
@@ -206,7 +226,7 @@ ifeq ($(DISABLE_SPIFFS), 1)
 endif
 
 # linker flags used to generate the main object file
-LDFLAGS		= -nostdlib -u call_user_start -u Cache_Read_Enable_New -Wl,-static -Wl,--gc-sections -Wl,-Map=$(basename $@).map
+LDFLAGS		= -nostdlib -u call_user_start -u Cache_Read_Enable_New -Wl,-static -Wl,--gc-sections -Wl,-Map=$(basename $@).map -Wl,-wrap,system_restart_local 
 
 ifeq ($(SPI_SPEED), 26)
 	flashimageoptions = -ff 26m
@@ -369,10 +389,12 @@ $(RBOOT_ROM_1): $(TARGET_OUT_1)
 $(TARGET_OUT_0): $(APP_AR)
 	$(vecho) "LD $@"
 	$(Q) $(LD) -L$(USER_LIBDIR) -L$(SDK_LIBDIR) -L$(BUILD_BASE) $(RBOOT_LD_0) $(LDFLAGS) -Wl,--start-group $(APP_AR) $(LIBS) -Wl,--end-group $(TAIL_LDFLAGS) -o $@
+	$(Q) $(STRIP) $@
 
 $(TARGET_OUT_1): $(APP_AR)
 	$(vecho) "LD $@"
 	$(Q) $(LD) -L$(USER_LIBDIR) -L$(SDK_LIBDIR) -L$(BUILD_BASE) $(RBOOT_LD_1) $(LDFLAGS) -Wl,--start-group $(APP_AR) $(LIBS) -Wl,--end-group $(TAIL_LDFLAGS) -o $@
+	$(Q) $(STRIP) $@
 
 $(APP_AR): $(OBJ)
 	$(vecho) "AR $@"
