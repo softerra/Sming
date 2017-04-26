@@ -1,5 +1,5 @@
---- third-party/rboot/Makefile
-+++ third-party/rboot/Makefile
+--- Makefile
++++ Makefile
 @@ -28,6 +28,9 @@ LD_SCRIPT = eagle.app.v6.ld
  
  E2_OPTS = -quiet -bin -boot0
@@ -10,8 +10,8 @@
  ifeq ($(RBOOT_BIG_FLASH),1)
  	CFLAGS += -DBOOT_BIG_FLASH
  endif
---- third-party/rboot/rboot.c
-+++ third-party/rboot/rboot.c
+--- rboot.c
++++ rboot.c
 @@ -282,6 +282,7 @@ uint32 NOINLINE find_image(void) {
  
  	rboot_config *romconf = (rboot_config*)buffer;
@@ -50,8 +50,8 @@
  		romconf->magic = BOOT_CONFIG_MAGIC;
  		romconf->version = BOOT_CONFIG_VERSION;
  		default_config(romconf, flashsize);
---- third-party/rboot/rboot.h
-+++ third-party/rboot/rboot.h
+--- rboot.h
++++ rboot.h
 @@ -94,6 +94,28 @@ extern "C" {
  #define MAX_ROMS 4
  #endif
