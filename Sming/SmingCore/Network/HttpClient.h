@@ -61,11 +61,12 @@ public:
 
 	void reset(); // Reset current status, data and etc.
 
+#ifdef ENABLE_SSL
 	using TcpClient::addSslOptions;
 	using TcpClient::setSslFingerprint;
+	using TcpClient::pinCertificate;
 	using TcpClient::setSslClientKeyCert;
 	using TcpClient::freeSslClientKeyCert;
-#ifdef ENABLE_SSL
 	using TcpClient::getSsl;
 #endif
 

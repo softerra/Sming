@@ -1,95 +1,47 @@
---- Makefile
-+++ Makefile
-@@ -28,6 +28,9 @@ LD_SCRIPT = eagle.app.v6.ld
- 
- E2_OPTS = -quiet -bin -boot0
- 
-+ifeq ($(RBOOT_CONFIG_OPROG),1)
-+	CFLAGS += -DBOOT_CONFIG_OPROG
-+endif
- ifeq ($(RBOOT_BIG_FLASH),1)
- 	CFLAGS += -DBOOT_BIG_FLASH
+diff --git a/Makefile b/Makefile
+index ca234de..08b0fba 100644
+--- a/Makefile
++++ b/Makefile
+@@ -55,6 +55,12 @@ endif
+ ifeq ($(RBOOT_IROM_CHKSUM),1)
+ 	CFLAGS += -DBOOT_IROM_CHKSUM
  endif
---- rboot.c
-+++ rboot.c
-@@ -282,6 +282,7 @@ uint32 NOINLINE find_image(void) {
- 
- 	rboot_config *romconf = (rboot_config*)buffer;
- 	rom_header *header = (rom_header*)buffer;
-+	int config_need_init = 0;
- 
- #if defined BOOT_DELAY_MICROS && BOOT_DELAY_MICROS > 0
- 	// delay to slow boot (help see messages when debugging)
-@@ -377,9 +378,26 @@ uint32 NOINLINE find_image(void) {
- 		|| romconf->chksum != calc_chksum((uint8*)romconf, (uint8*)&romconf->chksum)
- #endif
- 		) {
--		// create a default config for a standard 2 rom setup
--		ets_printf("Writing default boot config.\r\n");
--		ets_memset(romconf, 0x00, sizeof(rboot_config));
-+		config_need_init = 1;
++ifneq ($(RBOOT_ROM1_ADDR),)
++	CFLAGS += -DBOOT_ROM1_ADDR=$(RBOOT_ROM1_ADDR)
++endif
++ifneq ($(RBOOT_ROM2_ADDR),)
++	CFLAGS += -DBOOT_ROM2_ADDR=$(RBOOT_ROM2_ADDR)
++endif
+ ifneq ($(RBOOT_EXTRA_INCDIR),)
+ 	CFLAGS += $(addprefix -I,$(RBOOT_EXTRA_INCDIR))
+ endif
+diff --git a/rboot.c b/rboot.c
+index 6e10a2f..7ac60a8 100644
+--- a/rboot.c
++++ b/rboot.c
+@@ -250,7 +250,25 @@ static uint8 calc_chksum(uint8 *start, uint8 *end) {
+ static uint8 default_config(rboot_config *romconf, uint32 flashsize) {
+ 	romconf->count = 2;
+ 	romconf->roms[0] = SECTOR_SIZE * (BOOT_CONFIG_SECTOR + 1);
++
++#ifdef BOOT_ROM1_ADDR
++	romconf->roms[1] = BOOT_ROM1_ADDR;
++#else
+ 	romconf->roms[1] = (flashsize / 2) + (SECTOR_SIZE * (BOOT_CONFIG_SECTOR + 1));
++#endif
++
++#if defined(BOOT_BIG_FLASH) && defined(BOOT_GPIO_ENABLED)
++	if(flashsize > 0x200000) {
++		romconf->count += 1;
++#ifdef BOOT_ROM2_ADDR
++		romconf->roms[2] = BOOT_ROM2_ADDR;
++#else
++		romconf->roms[2] = 0x310000;
++#endif
++		romconf->gpio_rom = 2;
 +	}
-+
-+	if (config_need_init
-+#ifdef BOOT_CONFIG_OPROG
-+		|| (romconf->count == 1) /* pre-flashed Oprog configuration */
-+#endif
-+			) {
-+#ifdef BOOT_CONFIG_OPROG
-+		if (config_need_init) {
-+#endif
-+			// create a default config for a standard 2 rom setup
-+			ets_printf("Writing default boot config.\r\n");
-+			ets_memset(romconf, 0x00, sizeof(rboot_config));
-+
-+#ifdef BOOT_CONFIG_OPROG
-+		} else {
-+			ets_printf("Writing corrected boot config.\r\n");
-+		}
-+#endif
- 		romconf->magic = BOOT_CONFIG_MAGIC;
- 		romconf->version = BOOT_CONFIG_VERSION;
- 		default_config(romconf, flashsize);
---- rboot.h
-+++ rboot.h
-@@ -94,6 +94,28 @@ extern "C" {
- #define MAX_ROMS 4
- #endif
- 
-+#ifdef BOOT_CONFIG_OPROG
-+typedef unsigned short int uint16;
-+
-+#define OPROG_MAGIC					0xb6c3
-+#define OPROG_NODE_NAME_SIZE_MAX	32  /* =max of SSID length, see 802.11-2007, we use 31 + terminating 0 */
-+#define OPROG_AP_PASS_SIZE_MAX		32  /* we use 31 + terminating 0 */
-+
-+#define OPROG_BCONF_INIT		0x0001	///< Config contains pre-flashed settings
-+#define OPROG_BCONF_NODE_INFO	0x0002	///< Config contains information about Oprog-node installed (app_version and node_name)
-+
-+typedef struct {
-+	uint16 magic;	///< Magic, identifies rBoot Oprog data, used uint16 to distinct it from uint8 chksum
-+	uint16 flags;
-+
-+	uint32 app_version; ///< LE value of app verison
-+	char node_name[OPROG_NODE_NAME_SIZE_MAX];
-+
-+	char ap_ssid[32];
-+	char ap_pass[OPROG_AP_PASS_SIZE_MAX];
-+} rboot_config_oprog;
-+#endif /* BOOT_CONFIG_OPROG */
-+
- /** @brief  Structure containing rBoot configuration
-  *  @note   ROM addresses must be multiples of 0x1000 (flash sector aligned).
-  *          Without BOOT_BIG_FLASH only the first 8Mbit (1MB) of the chip will
-@@ -113,6 +135,11 @@ typedef struct {
- 	uint8 count;           ///< Quantity of ROMs available to boot
- 	uint8 unused[2];       ///< Padding (not used)
- 	uint32 roms[MAX_ROMS]; ///< Flash addresses of each ROM
-+
-+#ifdef BOOT_CONFIG_OPROG
-+	rboot_config_oprog oprog;
 +#endif
 +
- #ifdef BOOT_CONFIG_CHKSUM
- 	uint8 chksum;          ///< Checksum of this configuration structure (if BOOT_CONFIG_CHKSUM defined)
+ #ifdef BOOT_GPIO_ENABLED
+ 	romconf->mode = MODE_GPIO_ROM;
  #endif

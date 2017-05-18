@@ -1,4 +1,4 @@
-
+#include "WiringFrameworkDependencies.h"
 #include "FakePgmSpace.h"
 
 #ifdef ICACHE_FLASH
@@ -6,7 +6,7 @@ extern "C" void *memcpy_P(void *dest, const void *src_P, size_t length) {
 	char *dest0 = (char *)dest;
 	const char *src0 = (const char *)src_P;
 
-	if (!((unsigned long)src_P & 3) && !(length & 3))
+	if (!((unsigned long)src_P & 3) && !((unsigned long)dest & 3) && !(length & 3))
 		return memcpy(dest, src_P, length);
 
 	for (; length > 0; length--, src0++, dest0++)
@@ -17,19 +17,31 @@ extern "C" void *memcpy_P(void *dest, const void *src_P, size_t length) {
 
 extern "C" size_t strlen_P(const char * src_P)
 {
-	const char *src = (const char *)src_P;
-	char val;
+	char val = pgm_read_byte(src_P);
 	int len = 0;
-	for (; val; len++, src++)
-		val = pgm_read_byte(src);
+
+	while(val != 0)
+	{
+		++len; ++src_P;
+		val = pgm_read_byte(src_P);
+	}
 
 	return len;
 }
 
 extern "C" char *strcpy_P(char * dest, const char * src_P)
 {
+	for (char *p = dest; *p = pgm_read_byte(src_P++); p++) ;
+	return dest;
+}
+
+extern "C" char *strncpy_P(char * dest, size_t max_len, const char * src_P)
+{
 	int len = strlen_P(src_P);
+	if(len >= max_len)
+		len = max_len-1;
 	memcpy_P(dest, src_P, len);
+	dest[len] = 0;
 	return dest;
 }
 
