@@ -423,6 +423,9 @@ third-party/%:
 	$(Q) $(GIT) submodule update --init --recursive $(dir $@)
 	$(Q) touch $(patsubst third-party/%/,third-party/.patches/%.patch, $(dir $@))
 	$(Q) -cd $(dir $@); $(GIT) apply -v $(patsubst third-party/%/,$(SMING_HOME)/third-party/.patches/%.patch, $(dir $@)) --ignore-whitespace --whitespace=nowarn
+	$(Q) if [ -f $(patsubst third-party/%/,$(SMING_HOME)/third-party/.patches/%.private.patch, $(dir $@)) ]; then \
+        cd $(dir $@); $(GIT) apply -v $(patsubst third-party/%/,$(SMING_HOME)/third-party/.patches/%.private.patch, $(dir $@)) --ignore-whitespace --whitespace=nowarn; \
+	fi
 # if the new submodule brings source code files that need to be compiled inside Sming
 # then we need somehow to be able to "see" these new files. 
 # For now we solve this by "reloading" the makefile after fetching a module.
