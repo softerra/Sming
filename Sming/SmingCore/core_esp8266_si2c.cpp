@@ -25,6 +25,8 @@ unsigned char twi_dcount = 18;
 static unsigned char twi_sda, twi_scl;
 static uint32_t twi_clockStretchLimit;
 
+#define TWI_INIT() (GPOC = (1 << twi_sda) | (1 << twi_scl))	//SDA/SCL_LOW() relay on 0 in OUTPUT mode
+
 #define SDA_LOW()   (GPES = (1 << twi_sda)) //Enable SDA (becomes output and since GPO is 0 for the pin, it will pull the line low)
 #define SDA_HIGH()  (GPEC = (1 << twi_sda)) //Disable SDA (becomes input and since it has pullup it will go high)
 #define SDA_READ()  ((GPI & (1 << twi_sda)) != 0)
@@ -69,6 +71,7 @@ void twi_init(unsigned char sda, unsigned char scl){
   twi_scl = scl;
   pinMode(twi_sda, INPUT_PULLUP);
   pinMode(twi_scl, INPUT_PULLUP);
+  TWI_INIT();
   twi_setClock(100000);
   twi_setClockStretchLimit(230); // default value is 230 uS
 }
