@@ -51,7 +51,9 @@ void attachInterruptHandler(uint8_t pin, GPIO_INT_TYPE mode)
 		_gpioInterruptsInitialied = true;
 	}
 
-	pinMode(pin, INPUT);
+	if (!isInputPin(pin)) {
+		pinMode(pin, INPUT);
+	}
 
 	gpio_pin_intr_state_set(GPIO_ID_PIN(pin), mode); // Enable GPIO pin interrupt
 
@@ -75,7 +77,9 @@ void interruptMode(uint8_t pin, GPIO_INT_TYPE type)
 {
 	ETS_GPIO_INTR_DISABLE();
 
-	pinMode(pin, INPUT);
+	if (!isInputPin(pin)) {
+		pinMode(pin, INPUT);
+	}
 
 	gpio_pin_intr_state_set(GPIO_ID_PIN(pin), type);
 
