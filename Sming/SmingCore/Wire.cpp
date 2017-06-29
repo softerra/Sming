@@ -62,7 +62,7 @@ void TwoWire::begin(int scl, int sda){
 			// nothing to do
 			return;
 		}
-		twi_stop(); //TODO: switch old pis into INPUT mode?
+		twi_stop();
 	}
 	started_twi = true;
 
@@ -75,7 +75,7 @@ void TwoWire::begin(int scl, int sda){
 void TwoWire::pins(int scl, int sda) {
 	if (started_twi &&
 			(default_scl_pin != scl || default_sda_pin != sda)) {
-		twi_stop(); //TODO: switch old pis into INPUT mode?
+		twi_stop();
 		started_twi = false;
 	}
 	default_sda_pin = sda;
