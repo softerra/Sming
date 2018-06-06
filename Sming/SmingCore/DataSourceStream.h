@@ -13,10 +13,9 @@
 #include "../Services/ArduinoJson/include/ArduinoJson.h"
 #include "../Wiring/WString.h"
 #include "../Wiring/WHashMap.h"
+#include "../Wiring/Stream.h"
 
 #define TEMPLATE_MAX_VAR_NAME_LEN	16
-
-class HttpRequest;
 
 /** @brief  Data stream type
  *  @ingroup constants
@@ -46,7 +45,7 @@ class TemplateVariables : public HashMap<String, String>
 };
 
 ///Base class for data source stream
-class IDataSourceStream
+class IDataSourceStream : public Stream
 {
 public:
 	virtual ~IDataSourceStream() {}
@@ -65,6 +64,18 @@ public:
      */
 	virtual uint16_t readMemoryBlock(char* data, int bufSize) = 0;
 
+	/**
+	 * @brief Read one character and moves the stream pointer
+	 * @retval The character that was read or -1 if none is available
+	 */
+	virtual int read();
+
+	/**
+	 * @brief Read a character without advancing the stream pointer
+	 * @retval The character that was read or -1 if none is available
+	 */
+	virtual int peek();
+
 	/** @brief  Move read cursor
 	 *  @param  len Position within stream to move cursor to
 	 *  @retval bool True on success.
@@ -80,11 +91,49 @@ public:
 	 * @brief Return the total length of the stream
 	 * @retval int -1 is returned when the size cannot be determined
 	 */
-	virtual int length() {  return -1; }
+	virtual int available() {  return -1; }
+
+	/**
+	 * @brief Return the total length of the stream
+	 * @retval int -1 is returned when the size cannot be determined
+	 *
+	 * @deprecated This method is deprecated and will be removed in the coming versions.
+	 * 			   Please, use available() instead.
+	 */
+	int length() {  return available(); }
+
+	/*
+	 * @brief Flushes the stream
+	 */
+	virtual void flush() { }
+
+	/**
+	 * @brief Returns unique id of the resource.
+	 * @retval String the unique id of the stream.
+	 */
+	virtual String id() { return String(); }
+};
+
+class ReadWriteStream : public IDataSourceStream
+{
+public:
+	virtual ~ReadWriteStream() {}
+
+	virtual size_t write(uint8_t charToWrite) = 0;
+
+    /** @brief  Write chars to stream
+     *  @param  buffer Pointer to buffer to write to the stream
+     *  @param  size Quantity of chars to write
+     *  @retval size_t Quantity of chars written to stream
+     */
+	virtual size_t write(const uint8_t *buffer, size_t size) = 0;
+
+    //Use base class documentation
+	virtual uint16_t readMemoryBlock(char* data, int bufSize) = 0;
 };
 
 /// Memory data stream class
-class MemoryDataStream : public Print, public IDataSourceStream
+class MemoryDataStream : public ReadWriteStream
 {
 public:
     /** @brief Memory data stream base class
@@ -100,18 +149,11 @@ public:
 	 */
 	const char* getStreamPointer() { return pos; }
 
-	/** @brief  Get size of stream
-	 *  @retval int Quantity of chars in stream
-	 *
-	 *  @deprecated Use getLength instead
-	 */
-	int getStreamLength() { return size; }
-
 	/**
 	 * @brief Return the total length of the stream
 	 * @retval int -1 is returned when the size cannot be determined
 	*/
-	int length() { return size; }
+	int available();
 
     /** @brief  Write a single char to stream
      *  @param  charToWrite Char to write to the stream
@@ -121,7 +163,7 @@ public:
 
     /** @brief  Write chars to stream
      *  @param  buffer Pointer to buffer to write to the stream
-     *  @param  size Quantity of chars to writen
+     *  @param  size Quantity of chars to write
      *  @retval size_t Quantity of chars written to stream
      */
 	virtual size_t write(const uint8_t *buffer, size_t size);
@@ -143,7 +185,7 @@ private:
 };
 
 /// File stream class
-class FileStream : public IDataSourceStream
+class FileStream : public ReadWriteStream
 {
 public:
 	
@@ -151,10 +193,10 @@ public:
      *  @param  fileName Name of file to open
      */
 	FileStream();
-	FileStream(String fileName);
+	FileStream(const String& fileName);
 	virtual ~FileStream();
 
-	virtual bool attach(String fileName, FileOpenFlags openFlags);
+	virtual bool attach(const String& fileName, FileOpenFlags openFlags);
     //Use base class documentation
 	virtual StreamType getStreamType() { return eSST_File; }
 
@@ -182,7 +224,9 @@ public:
 	 * @brief Return the total length of the stream
 	 * @retval int -1 is returned when the size cannot be determined
 	 */
-	int length() { return size; }
+	int available() { return size; }
+
+	virtual String id();
 
 private:
 	file_t handle;
@@ -215,7 +259,7 @@ public:
     /** @brief Create a template file stream
      *  @param  templateFileName Template filename
      */
-	TemplateFileStream(String templateFileName);
+	TemplateFileStream(const String& templateFileName);
 	virtual ~TemplateFileStream();
 
     //Use base class documentation
@@ -230,14 +274,14 @@ public:
     /** @brief  Set value of a variable in the template file
      *  @param  name Name of variable
      *  @param  value Value to assign to the variable
-     *  @note   Sets and existing varible or adds a new variable if variable does not already exist
+     *  @note   Sets and existing variable or adds a new variable if variable does not already exist
      */
 	void setVar(String name, String value);
 
-    /** @brief  Set the value of variables from the content of a HTTP request
-     *  @param  request HTTP request
+    /** @brief  Set multiple variables in the template file
+     *  @param  vars Template Variables
      */
-	void setVarsFromRequest(const HttpRequest& request);
+    void setVars(const TemplateVariables& vars);
 
     /** @brief  Get the template variables
      *  @retval TemplateVariables Reference to the template variables
@@ -248,7 +292,7 @@ public:
 	 * @brief Return the total length of the stream
 	 * @retval int -1 is returned when the size cannot be determined
 	 */
-	int length() { return -1; }
+	int available() { return -1; }
 
 private:
 	TemplateVariables templateData;
@@ -283,12 +327,44 @@ public:
 	 * @brief Return the total length of the stream
 	 * @retval int -1 is returned when the size cannot be determined
 	 */
-	int length();
+	int available();
 
 private:
 	DynamicJsonBuffer buffer;
 	JsonObject &rootNode;
 	bool send;
+};
+
+class EndlessMemoryStream: public ReadWriteStream
+{
+public:
+	virtual ~EndlessMemoryStream();
+
+	//Use base class documentation
+	virtual StreamType getStreamType();
+
+	virtual uint16_t readMemoryBlock(char* data, int bufSize);
+
+	//Use base class documentation
+	virtual bool seek(int len);
+
+	/** @brief  Write a single char to stream
+	 *  @param  charToWrite Char to write to the stream
+	 *  @retval size_t Quantity of chars written to stream (always 1)
+	 */
+	virtual size_t write(uint8_t charToWrite);
+
+	/** @brief  Write chars to stream
+	 *  @param  buffer Pointer to buffer to write to the stream
+	 *  @param  size Quantity of chars to write
+	 *  @retval size_t Quantity of chars written to stream
+	 */
+	virtual size_t write(const uint8_t *buffer, size_t size);
+
+	virtual bool isFinished();
+
+private:
+	MemoryDataStream* stream = NULL;
 };
 
 /** @} */

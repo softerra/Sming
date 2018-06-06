@@ -52,7 +52,7 @@ void NtpClient::requestTime()
 		return;
 	}
 
-	struct ip_addr resolvedIp;
+	ip_addr_t resolvedIp;
 	int result = dns_gethostbyname(this->server.c_str(), &resolvedIp,
 			staticDnsResponse, (void*) this);
 
@@ -69,10 +69,10 @@ void NtpClient::requestTime()
 		break;
 	case ERR_INPROGRESS:
 		// currently finding ip, internalRequestTime() will be called when its found.
-		//debugf("DNS IP lookup in progress.");
+		//debug_d("DNS IP lookup in progress.");
 		break;
 	default:
-		debugf("DNS lookup error occurred.");
+		debug_d("DNS lookup error occurred.");
 		break;
 	}
 }
@@ -174,7 +174,7 @@ void NtpClient::onReceive(pbuf *buf, IPAddress remoteIP, uint16_t remotePort)
 	}
 }
 
-void NtpClient::staticDnsResponse(const char *name, struct ip_addr *ip, void *arg)
+void NtpClient::staticDnsResponse(const char *name, LWIP_IP_ADDR_T *ip, void *arg)
 {
 	// DNS has been resolved
 

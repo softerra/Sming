@@ -10,6 +10,12 @@
  *
  ****/
 
+/** @defgroup   httpclient HTTP client
+ *  @brief      Provides HTTP/S client
+ *  @ingroup    tcpclient
+ *  @{
+ */
+
 #ifndef _SMING_CORE_NETWORK_HTTPCLIENT_H_
 #define _SMING_CORE_NETWORK_HTTPCLIENT_H_
 
@@ -73,6 +79,8 @@ public:
 #ifdef ENABLE_SSL
 	static void freeSslSessionPool();
 #endif
+	static void freeHttpConnectionPool();
+	static void freeRequestQueue();
 
 	/**
 	 * Use this method to clean all request queues and object pools
@@ -93,4 +101,5 @@ protected:
 #endif
 };
 
+/** @} */
 #endif /* _SMING_CORE_NETWORK_HTTPCLIENT_H_ */

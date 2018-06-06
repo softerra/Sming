@@ -31,7 +31,7 @@ public:
 
 	// @deprecated method
 
-	bool hasHeader(const String name);
+	bool hasHeader(const String& name);
 
 	void redirect(const String& location);
 
@@ -49,12 +49,12 @@ public:
 		code = HTTP_STATUS_NOT_FOUND;
 	}
 
-	HttpResponse* setContentType(const String type);
+	HttpResponse* setContentType(const String& type);
 	HttpResponse* setContentType(enum MimeType type);
-	HttpResponse* setCookie(const String name, const String value);
-	HttpResponse* setHeader(const String name, const String value);
+	HttpResponse* setCookie(const String& name, const String& value);
+	HttpResponse* setHeader(const String& name, const String& value);
 	HttpResponse* setCache(int maxAgeSeconds = 3600, bool isPublic = false);
-	HttpResponse* setAllowCrossDomainOrigin(String controlAllowOrigin); // Access-Control-Allow-Origin for AJAX from a different domain
+	HttpResponse* setAllowCrossDomainOrigin(const String& controlAllowOrigin); // Access-Control-Allow-Origin for AJAX from a different domain
 
 	// Send file by name
 	bool sendFile(String fileName, bool allowGzipFileCheck = true);
@@ -74,19 +74,19 @@ public:
 	// @end deprecated
 
 	// Send Datastream, can be called with Classes derived from
-	bool sendDataStream( IDataSourceStream * newDataStream , enum MimeType type) {
+	bool sendDataStream( ReadWriteStream * newDataStream , enum MimeType type) {
 		return sendDataStream(newDataStream, ContentType::toString(type));
 	}
 
 	// Send Datastream, can be called with Classes derived from
-	bool sendDataStream( IDataSourceStream * newDataStream , String reqContentType = "" );
+	bool sendDataStream( ReadWriteStream * newDataStream , const String& reqContentType = "" );
 
 	void reset();
 
 public:
 	int code;
 	HttpHeaders headers;
-	IDataSourceStream* stream = NULL;
+	ReadWriteStream* stream = NULL;
 };
 
 #endif /* _SMING_CORE_HTTP_RESPONSE_H_ */

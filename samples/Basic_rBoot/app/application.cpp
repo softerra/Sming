@@ -95,13 +95,22 @@ void ShowInfo() {
     Serial.printf("System Chip ID: %x\r\n", system_get_chip_id());
     Serial.printf("SPI Flash ID: %x\r\n", spi_flash_get_id());
     //Serial.printf("SPI Flash Size: %d\r\n", (1 << ((spi_flash_get_id() >> 16) & 0xff)));
+
+    rboot_config conf;
+    conf = rboot_get_config();
+
+    debugf("Count: %d", conf.count);
+    debugf("ROM 0: %d", conf.roms[0]);
+    debugf("ROM 1: %d", conf.roms[1]);
+    debugf("ROM 2: %d", conf.roms[2]);
+    debugf("GPIO ROM: %d", conf.gpio_rom);
 }
 
 void serialCallBack(Stream& stream, char arrivedChar, unsigned short availableCharsCount) {
-
-	if (arrivedChar == '\n') {
-		char str[availableCharsCount];
-		for (int i = 0; i < availableCharsCount; i++) {
+	int pos = stream.indexOf('\n');
+	if(pos > -1) {
+		char str[pos + 1];
+		for (int i = 0; i < pos + 1; i++) {
 			str[i] = stream.read();
 			if (str[i] == '\r' || str[i] == '\n') {
 				str[i] = '\0';
@@ -112,6 +121,7 @@ void serialCallBack(Stream& stream, char arrivedChar, unsigned short availableCh
 			// connect to wifi
 			WifiStation.config(WIFI_SSID, WIFI_PWD);
 			WifiStation.enable(true);
+			WifiStation.connect();
 		} else if (!strcmp(str, "ip")) {
 			Serial.printf("ip: %s mac: %s\r\n", WifiStation.getIP().toString().c_str(), WifiStation.getMAC().c_str());
 		} else if (!strcmp(str, "ota")) {

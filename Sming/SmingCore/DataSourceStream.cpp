@@ -6,6 +6,26 @@
  ****/
 
 #include "../SmingCore/DataSourceStream.h"
+#include <algorithm>
+
+int IDataSourceStream::read()
+{
+	int res = peek();
+	if(res != -1) {
+		seek(1);
+	}
+
+	return res;
+}
+
+int IDataSourceStream::peek() {
+	char c;
+	if (readMemoryBlock(&c, 1) == 1) {
+		return (int)c;
+	}
+
+	return -1;
+}
 
 MemoryDataStream::MemoryDataStream()
 {
@@ -21,6 +41,11 @@ MemoryDataStream::~MemoryDataStream()
 	buf = NULL;
 	pos = NULL;
 	size = 0;
+}
+
+int MemoryDataStream::available()
+{
+	return size - (pos - buf);
 }
 
 size_t MemoryDataStream::write(uint8_t charToWrite)
@@ -46,7 +71,7 @@ size_t MemoryDataStream::write(const uint8_t* data, size_t len)
 		if (required > capacity)
 		{
 			capacity = required < 256 ? required + 128 : required + 64;
-			debugf("realloc %d -> %d", size, capacity);
+			debug_d("realloc %d -> %d", size, capacity);
 			char * new_buf;
 			//realloc can fail, store the result in temporary pointer
 			new_buf = (char*)realloc(buf, capacity);
@@ -67,7 +92,7 @@ size_t MemoryDataStream::write(const uint8_t* data, size_t len)
 
 uint16_t MemoryDataStream::readMemoryBlock(char* data, int bufSize)
 {
-	int available = min(size - (pos - buf), bufSize);
+	int available = std::min(size - (pos - buf), bufSize);
 	memcpy(data, pos, available);
 	return available;
 }
@@ -94,17 +119,17 @@ FileStream::FileStream()
 	pos = 0;
 }
 
-FileStream::FileStream(String filename)
+FileStream::FileStream(const String& filename)
 {
 	attach(filename, eFO_ReadOnly);
 }
 
-bool FileStream::attach(String fileName, FileOpenFlags openFlags)
+bool FileStream::attach(const String& fileName, FileOpenFlags openFlags)
 {
 	handle = fileOpen(fileName.c_str(), openFlags);
 	if (handle == -1)
 	{
-		debugf("File wasn't found: %s", fileName.c_str());
+		debug_w("File wasn't found: %s", fileName.c_str());
 		size = -1;
 		pos = 0;
 		return false;
@@ -117,7 +142,7 @@ bool FileStream::attach(String fileName, FileOpenFlags openFlags)
 	fileSeek(handle, 0, eSO_FileStart);
 	pos = 0;
 
-	debugf("attached file: %s (%d bytes)", fileName.c_str(), size);
+	debug_d("attached file: %s (%d bytes)", fileName.c_str(), size);
 	return true;
 }
 
@@ -130,9 +155,12 @@ FileStream::~FileStream()
 
 uint16_t FileStream::readMemoryBlock(char* data, int bufSize)
 {
-	int len = min(bufSize, size - pos);
+	int len = std::min(bufSize, size - pos);
 	int available = fileRead(handle, data, len);
 	fileSeek(handle, pos, eSO_FileStart); // Don't move cursor now (waiting seek)
+	if(available < 0) {
+		available = 0;
+	}
 	return available;
 }
 
@@ -176,9 +204,21 @@ bool FileStream::fileExist()
 	return size != -1;
 }
 
+String FileStream::id()
+{
+	spiffs_stat stat;
+	fileStats(handle, &stat);
+
+#define ETAG_SIZE 16
+	char buf[ETAG_SIZE];
+	m_snprintf(buf, ETAG_SIZE, "00f-%x-%x0-%x", stat.obj_id, stat.size, strlen((char*)stat.name));
+
+	return String(buf);
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-TemplateFileStream::TemplateFileStream(String templateFileName)
+TemplateFileStream::TemplateFileStream(const String& templateFileName)
 	: FileStream(templateFileName)
 {
 	state = eTES_Wait;
@@ -190,7 +230,7 @@ TemplateFileStream::~TemplateFileStream()
 
 uint16_t TemplateFileStream::readMemoryBlock(char* data, int bufSize)
 {
-	debugf("READ Template (%d)", state);
+	debug_d("READ Template (%d)", state);
 	int available;
 
 	if (state == eTES_StartVar)
@@ -198,7 +238,7 @@ uint16_t TemplateFileStream::readMemoryBlock(char* data, int bufSize)
 		if (templateData.contains(varName))
 		{
 			// Return variable value
-			debugf("StartVar %s", varName.c_str());
+			debug_d("StartVar %s", varName.c_str());
 			available = templateData[varName].length();
 			memcpy(data, (char*)templateData[varName].c_str(), available);
 			seek(skipBlockSize);
@@ -208,10 +248,10 @@ uint16_t TemplateFileStream::readMemoryBlock(char* data, int bufSize)
 		}
 		else
 		{
-			debugf("var %s not found", varName.c_str());
+			debug_d("var %s not found", varName.c_str());
 			state = eTES_Wait;
 			int len = FileStream::readMemoryBlock(data, bufSize);
-			return min(len, skipBlockSize);
+			return std::min(len, skipBlockSize);
 		}
 	}
 	else if (state == eTES_SendingVar)
@@ -219,14 +259,14 @@ uint16_t TemplateFileStream::readMemoryBlock(char* data, int bufSize)
 		String *val = &templateData[varName];
 		if (varDataPos < val->length())
 		{
-			debugf("continue TRANSFER variable value (not completed)");
+			debug_d("continue TRANSFER variable value (not completed)");
 			available = val->length() - varDataPos;
 			memcpy(data, ((char*)val->c_str()) + varDataPos, available);
 			return available;
 		}
 		else
 		{
-			debugf("continue to plaint text");
+			debug_d("continue to plaint text");
 			state = eTES_Wait;
 		}
 	}
@@ -259,7 +299,7 @@ uint16_t TemplateFileStream::readMemoryBlock(char* data, int bufSize)
 					varName = varname;
 					state = eTES_Found;
 					varWaitSize = cur - tpl;
-					debugf("found var: %s, at %d (%d) - %d, send size %d", varName.c_str(), varWaitSize + 1, varWaitSize + getPos(), p - tpl, varWaitSize);
+					debug_d("found var: %s, at %d (%d) - %d, send size %d", varName.c_str(), varWaitSize + 1, varWaitSize + getPos(), p - tpl, varWaitSize);
 					skipBlockSize = block;
 					if (varWaitSize == 0) state = eTES_StartVar;
 					return varWaitSize; // return only plain text from template without our variable
@@ -269,23 +309,23 @@ uint16_t TemplateFileStream::readMemoryBlock(char* data, int bufSize)
 		}
 		if (lastFound != NULL && (lastFound - tpl) > (len - TEMPLATE_MAX_VAR_NAME_LEN))
 		{
-			debugf("trim end to %d from %d", lastFound - tpl, len);
+			debug_d("trim end to %d from %d", lastFound - tpl, len);
 			len = lastFound - tpl; // It can be a incomplete variable name. Don't split it!
 		}
 	}
 
-	debugf("plain template text pos: %d, len: %d", getPos(), len);
+	debug_d("plain template text pos: %d, len: %d", getPos(), len);
 	return len;
 }
 
 bool TemplateFileStream::seek(int len)
 {
 	if (len < 0) return false;
-	//debugf("SEEK: %d, (%d)", len, state);
+	//debug_d("SEEK: %d, (%d)", len, state);
 
 	if (state == eTES_Found)
 	{
-		//debugf("SEEK before Var: %d, (%d)", len, varWaitSize);
+		//debug_d("SEEK before Var: %d, (%d)", len, varWaitSize);
 		varWaitSize -= len;
 		if (varWaitSize == 0) state = eTES_StartVar;
 	}
@@ -303,16 +343,10 @@ void TemplateFileStream::setVar(String name, String value)
 	templateData[name] = value;
 }
 
-// TODO: Remove that dependency from here ...
-//void TemplateFileStream::setVarsFromRequest(const HttpRequest& request)
-//{
-//	if (request.requestGetParameters != NULL)
-//		templateData.setMultiple(*request.requestGetParameters);
-//	if (request.requestPostParameters != NULL)
-//		templateData.setMultiple(*request.requestPostParameters);
-//}
-
-///////////////////////////////////////////////////////////////////////////
+void TemplateFileStream::setVars(const TemplateVariables& vars)
+{
+	templateData.setMultiple(vars);
+}
 
 JsonObjectStream::JsonObjectStream()
 	: rootNode(buffer.createObject()), send(true)
@@ -339,11 +373,70 @@ uint16_t JsonObjectStream::readMemoryBlock(char* data, int bufSize)
 	return MemoryDataStream::readMemoryBlock(data, bufSize);
 }
 
-int JsonObjectStream::length()
+int JsonObjectStream::available()
 {
 	if (rootNode == JsonObject::invalid()) {
 		return 0;
 	}
 
 	return rootNode.measureLength();
+}
+
+EndlessMemoryStream::~EndlessMemoryStream()
+{
+	delete stream;
+	stream = NULL;
+}
+
+StreamType EndlessMemoryStream::getStreamType()
+{
+	return eSST_Memory;
+}
+
+uint16_t EndlessMemoryStream::readMemoryBlock(char* data, int bufSize)
+{
+	if(stream == NULL) {
+		return 0;
+	}
+
+	return stream->readMemoryBlock(data, bufSize);
+}
+
+//Use base class documentation
+bool EndlessMemoryStream::seek(int len)
+{
+	if(stream == NULL) {
+		return false;
+	}
+
+	int res = stream->seek(len);
+	if(stream->isFinished()) {
+		delete stream;
+		stream = NULL;
+	}
+
+	return res;
+}
+
+size_t EndlessMemoryStream::write(uint8_t charToWrite)
+{
+	if(stream == NULL) {
+		stream = new MemoryDataStream();
+	}
+
+	return stream->write(charToWrite);
+}
+
+size_t EndlessMemoryStream::write(const uint8_t *buffer, size_t size)
+{
+	if(stream == NULL) {
+		stream = new MemoryDataStream();
+	}
+
+	return stream->write(buffer, size);
+}
+
+bool EndlessMemoryStream::isFinished()
+{
+	return false;
 }

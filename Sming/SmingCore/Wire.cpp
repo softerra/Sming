@@ -49,6 +49,8 @@ static int default_sda_pin = 2;
 static int default_scl_pin = 0;
 
 static bool started_twi = false;
+static int started_sda_pin = -1;
+static int started_scl_pin = -1;
 
 // Constructors ////////////////////////////////////////////////////////////////
 
@@ -56,15 +58,17 @@ TwoWire::TwoWire(){}
 
 // Public Methods //////////////////////////////////////////////////////////////
 
-void TwoWire::begin(int scl, int sda){
+void TwoWire::begin(int sda, int scl){
 	if (started_twi) {
-		if (default_scl_pin == scl && default_sda_pin == sda) {
+		if (started_scl_pin == scl && started_sda_pin == sda) {
 			// nothing to do
 			return;
 		}
 		twi_stop();
 	}
 	started_twi = true;
+	started_sda_pin = sda;
+	started_scl_pin = scl;
 
   default_sda_pin = sda;
   default_scl_pin = scl;
@@ -72,18 +76,13 @@ void TwoWire::begin(int scl, int sda){
   flush();
 }
 
-void TwoWire::pins(int scl, int sda) {
-	if (started_twi &&
-			(default_scl_pin != scl || default_sda_pin != sda)) {
-		twi_stop();
-		started_twi = false;
-	}
-	default_sda_pin = sda;
-	default_scl_pin = scl;
+void TwoWire::pins(int sda, int scl){
+  default_sda_pin = sda;
+  default_scl_pin = scl;
 }
 
 void TwoWire::begin(void){
-  begin(default_scl_pin, default_sda_pin);
+  begin(default_sda_pin, default_scl_pin);
 }
 
 void TwoWire::begin(uint8_t address){

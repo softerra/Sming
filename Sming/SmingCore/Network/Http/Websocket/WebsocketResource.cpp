@@ -26,17 +26,23 @@ int WebsocketResource::checkHeaders(HttpServerConnection& connection, HttpReques
 	socket->setConnectionHandler(wsConnect);
 	socket->setDisconnectionHandler(wsDisconnect);
 	if (!socket->initialize(request, response)) {
-		debugf("Not a valid WebsocketRequest?");
+		debug_w("Not a valid WebsocketRequest?");
 		delete socket;
 		return -1;
 	}
 
 	connection.setTimeOut(USHRT_MAX); //Disable disconnection on connection idle (no rx/tx)
-	connection.userData = (void *)socket;
 
 // TODO: Re-Enable Command Executor...
 
 	return 0;
+}
+
+void  WebsocketResource::shutdown(HttpServerConnection& connection)
+{
+	WebSocketConnection* socket = (WebSocketConnection *)connection.userData;
+	delete socket;
+	connection.userData = NULL;
 }
 
 int WebsocketResource::processData(HttpServerConnection& connection, HttpRequest& request, char *at, int size)

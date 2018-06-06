@@ -41,14 +41,14 @@ void formUrlParser(HttpRequest& request, const char *at, int length)
 			String key = request.postParams.keyAt(i);
 			String value = request.postParams.valueAt(i);
 
-			uri_unescape(buffer, maxLength, key.c_str(), key.length());
+			uri_unescape(buffer, maxLength + 1, key.c_str(), key.length());
 			String newKey = buffer;
 
 			if(newKey != key) {
 				request.postParams.remove(key);
 			}
 
-			uri_unescape(buffer, maxLength, value.c_str(), value.length());
+			uri_unescape(buffer, maxLength + 1, value.c_str(), value.length());
 			request.postParams[newKey] = buffer;
 		}
 		delete[] buffer;
@@ -62,7 +62,7 @@ void formUrlParser(HttpRequest& request, const char *at, int length)
 	}
 
 	if(state == NULL) {
-		debugf("Invalid request argument");
+		debug_e("Invalid request argument");
 		return;
 	}
 
@@ -94,4 +94,25 @@ void formUrlParser(HttpRequest& request, const char *at, int length)
 
 		data = data.substring(pos + 1);
 	}
+}
+
+void bodyToStringParser(HttpRequest& request, const char *at, int length)
+{
+	String* data = static_cast<String *>(request.args);
+
+	if(length == -1) {
+		delete data;
+		data = new String();
+		request.args = (void *)data;
+		return;
+	}
+
+	if(length == -2) {
+		request.setBody(*data);
+		delete data;
+		request.args = NULL;
+		return;
+	}
+
+	*data += String(at, length);
 }

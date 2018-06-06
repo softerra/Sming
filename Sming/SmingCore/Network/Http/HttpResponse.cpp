@@ -15,13 +15,11 @@
 
 HttpResponse::~HttpResponse()
 {
-	if(stream != NULL) {
-		delete stream;
-		stream = NULL;
-	}
+	delete stream;
+	stream = NULL;
 }
 
-HttpResponse* HttpResponse::setContentType(const String type)
+HttpResponse* HttpResponse::setContentType(const String& type)
 {
 	return setHeader("Content-Type", type);
 }
@@ -31,23 +29,23 @@ HttpResponse* HttpResponse::setContentType(enum MimeType type)
 	return setContentType(ContentType::toString(type));
 }
 
-HttpResponse* HttpResponse::setCookie(const String name, const String value)
+HttpResponse* HttpResponse::setCookie(const String& name, const String& value)
 {
 	return setHeader("Set-Cookie", name + "=" + value);
 }
 
 HttpResponse* HttpResponse::setCache(int maxAgeSeconds, bool isPublic /* = false */)
 {
-	String chache = String(isPublic ? "public" : "private") +", max-age=" + String(maxAgeSeconds) + ", must-revalidate";
-	return setHeader("Cache-Control", chache);
+	String cache = String(isPublic ? "public" : "private") +", max-age=" + String(maxAgeSeconds) + ", must-revalidate";
+	return setHeader("Cache-Control", cache);
 }
 
-HttpResponse* HttpResponse::setAllowCrossDomainOrigin(String controlAllowOrigin)
+HttpResponse* HttpResponse::setAllowCrossDomainOrigin(const String& controlAllowOrigin)
 {
 	return setHeader("Access-Control-Allow-Origin", controlAllowOrigin);
 }
 
-HttpResponse* HttpResponse::setHeader(const String name, const String value)
+HttpResponse* HttpResponse::setHeader(const String& name, const String& value)
 {
 	headers[name] = value;
 	return this;
@@ -55,24 +53,23 @@ HttpResponse* HttpResponse::setHeader(const String name, const String value)
 
 bool HttpResponse::sendString(const String& text)
 {
-	MemoryDataStream* memStream = new MemoryDataStream();
-	if (memStream->write((const uint8_t*)text.c_str(), text.length()) != text.length()) {
-		return false;
-	}
-
-	if (stream != NULL)
-	{
+	if (stream != NULL && stream->getStreamType() != eSST_Memory) {
 		SYSTEM_ERROR("Stream already created");
 		delete stream;
 		stream = NULL;
 	}
 
-	stream = memStream;
+	if(stream == NULL) {
+		stream = new MemoryDataStream();
+	}
 
-	return true;
+	MemoryDataStream *writable = static_cast<MemoryDataStream *>(stream);
+	bool success = (writable->write((const uint8_t*)text.c_str(), text.length()) == text.length());
+
+	return success;
 }
 
-bool HttpResponse::hasHeader(const String name)
+bool HttpResponse::hasHeader(const String& name)
 {
 	return headers.contains(name);
 }
@@ -93,13 +90,13 @@ bool HttpResponse::sendFile(String fileName, bool allowGzipFileCheck /* = true*/
 	String compressed = fileName + ".gz";
 	if (allowGzipFileCheck && fileExist(compressed))
 	{
-		debugf("found %s", compressed.c_str());
+		debug_d("found %s", compressed.c_str());
 		stream = new FileStream(compressed);
 		headers["Content-Encoding"] = "gzip";
 	}
 	else if (fileExist(fileName))
 	{
-		debugf("found %s", fileName.c_str());
+		debug_d("found %s", fileName.c_str());
 		stream = new FileStream(fileName);
 	}
 	else
@@ -163,7 +160,7 @@ bool HttpResponse::sendJsonObject(JsonObjectStream* newJsonStreamInstance)
 	return true;
 }
 
-bool HttpResponse::sendDataStream( IDataSourceStream * newDataStream , String reqContentType /* = "" */)
+bool HttpResponse::sendDataStream( ReadWriteStream * newDataStream , const String& reqContentType /* = "" */)
 {
     if (stream != NULL)
     {

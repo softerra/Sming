@@ -35,28 +35,48 @@ COM_SPEED = 115200
 # Git command
 GIT ?= git
 
+# Detect OS and build environment
+UNAME := $(shell uname -s)
 
 ifeq ($(OS),Windows_NT)
-  # Windows detected
+  # Convert Windows paths to POSIX paths
+  SMING_HOME := $(subst \,/,$(addprefix /,$(subst :,,$(SMING_HOME))))
+  SMING_HOME := $(subst //,/,$(SMING_HOME))
+  ESP_HOME := $(subst \,/,$(addprefix /,$(subst :,,$(ESP_HOME))))
+  ESP_HOME   := $(subst //,/,$(ESP_HOME))
+endif
+
+ifneq ($(filter MINGW32_NT%,$(UNAME)),)
   UNAME := Windows
-  
+else ifneq ($(filter CYGWIN%,$(UNAME)),)
+  # Cygwin Detected
+  UNAME := Linux
+else ifneq ($(filter CYGWIN%WOW,$(UNAME)),)
+  #Cygwin32
+  UNAME := Linux
+else ifneq ($(filter MSYS%WOW,$(UNAME)),)
+  #Msys32
+  UNAME := Linux
+else ifeq ($(UNAME), Linux)
+  #Linux
+else ifeq ($(UNAME), Darwin)
+  #OS X
+else ifeq ($(UNAME), Freebsd)
+  #BSD
+endif
+
+# OS specific configuration
+ifeq ($(UNAME),Windows)
+  # Windows detected
+
   # Default SMING_HOME. Can be overriden.
   SMING_HOME ?= c:\tools\Sming\Sming
 
   # Default ESP_HOME. Can be overriden.
   ESP_HOME ?= c:\Espressif
 
-  # Making proper path adjustments - replace back slashes, remove colon and add forward slash.
-  SMING_HOME := $(subst \,/,$(addprefix /,$(subst :,,$(SMING_HOME))))
-  ESP_HOME := $(subst \,/,$(addprefix /,$(subst :,,$(ESP_HOME))))
-  
-  # Remove possible double escaping...
-  SMING_HOME := $(subst //,/, $(SMING_HOME))
-  ESP_HOME   := $(subst //,/, $(ESP_HOME))
-
-  include Makefile-windows.mk  
+  include $(SMING_HOME)/Makefile-windows.mk
 else
-  UNAME := $(shell uname -s)
   ifeq ($(UNAME),Darwin)
       # MacOS Detected
       UNAME := MacOS
@@ -68,8 +88,7 @@ else
       ESP_HOME ?= /opt/esp-open-sdk
 
       include Makefile-macos.mk      
-  endif
-  ifeq ($(UNAME),Linux)
+  else ifeq ($(UNAME),Linux)
       # Linux Detected
       UNAME := Linux
 
@@ -78,9 +97,8 @@ else
 
       # Default ESP_HOME. Can be overriden.
       ESP_HOME ?= /opt/esp-open-sdk
-      include Makefile-linux.mk     
-  endif
-  ifeq ($(UNAME),FreeBSD)
+      include Makefile-linux.mk
+  else ifeq ($(UNAME),FreeBSD)
       # Freebsd Detected
       UNAME := FreeBSD
 
@@ -148,11 +166,15 @@ endif
 # name for the target project
 TARGET		= app
 
-
 CUSTOM_TARGETS ?=
 
+ARDUINO_LIBRARIES = $(shell git submodule status Libraries | cut -c2- | cut -f2 -d ' ' | sed -r 's/Libraries\/([^/]*)/Libraries\/\1\/library.properties/g' )
+
 # which modules (subdirectories) of the project to include in compiling
-MODULES		= system system/helpers Wiring appinit $(shell find SmingCore -type d) $(filter %/, $(wildcard Services/*/)) $(filter %/, $(wildcard Libraries/*/))
+MODULES     = system system/helpers Wiring appinit \
+              $(sort $(dir $(wildcard SmingCore/*/ SmingCore/*/*/ SmingCore/*/*/*/))) \
+              $(filter %/, $(wildcard Services/*/)) \
+              $(filter %/, $(wildcard Libraries/*/)) $(wildcard Libraries/*/src/)
 EXTRA_INCDIR    = include system/include Wiring Libraries SmingCore $(SDK_BASE)/../include
 
 # Place a file that should exist in a submodule that is fetched separately
@@ -170,10 +192,16 @@ THIRD_PARTY_DATA += third-party/http-parser/Makefile
 MODULES		     += third-party/http-parser/
 EXTRA_INCDIR     += third-party/http-parser/
 
-# => webscoket-parser
+# => websocket-parser
 THIRD_PARTY_DATA += third-party/ws_parser/Makefile
 MODULES              += third-party/ws_parser/
 EXTRA_INCDIR     += third-party/ws_parser/
+
+# => SDK
+ifneq (,$(findstring third-party/ESP8266_NONOS_SDK, $(SDK_BASE)))
+	THIRD_PARTY_DATA += third-party/ESP8266_NONOS_SDK/Makefile
+	CFLAGS += -DSDK_INTERNAL
+endif
 
 # => esp-gdbstub
 ifeq ($(ENABLE_GDB), 1)
@@ -196,9 +224,23 @@ endif
 LIBLWIP = lwip
 ENABLE_CUSTOM_LWIP ?= 1
 ENABLE_ESPCONN ?= 0
+ifeq ($(ENABLE_CUSTOM_LWIP), 0) 
+	EXTRA_INCDIR += system/esp-lwip
+endif
 ifeq ($(ENABLE_CUSTOM_LWIP), 1)
 	THIRD_PARTY_DATA += third-party/esp-open-lwip/Makefile.open
 	EXTRA_INCDIR += third-party/esp-open-lwip/include
+	LIBLWIP = lwip_open
+	LWIP_EXTRA_FLAGS = 1
+endif
+ifeq ($(ENABLE_CUSTOM_LWIP), 2)
+	THIRD_PARTY_DATA += third-party/lwip2/Makefile.sming
+	EXTRA_INCDIR += third-party/lwip2/glue-esp/include-esp third-party/lwip2/include
+	LIBLWIP = lwip2
+	LWIP_EXTRA_FLAGS = 1
+endif
+
+ifeq ($(LWIP_EXTRA_FLAGS),1)
 	EXTRA_CFLAGS_LWIP = -I../../system/include -I../../Wiring
 	ENABLE_LWIPDEBUG ?= 0
 	ifeq ($(ENABLE_LWIPDEBUG), 1)
@@ -207,8 +249,6 @@ ifeq ($(ENABLE_CUSTOM_LWIP), 1)
 
 	ifeq ($(ENABLE_ESPCONN), 1)
 		LIBLWIP = lwip_full
-	else
-		LIBLWIP = lwip_open
 	endif
 	CUSTOM_TARGETS += $(USER_LIBDIR)/lib$(LIBLWIP).a
 endif
@@ -219,12 +259,14 @@ LIBS		= microc microgcc hal phy pp net80211 $(LIBLWIP) wpa main
 ENABLE_CUSTOM_PWM ?= 1
 ifeq ($(ENABLE_CUSTOM_PWM), 1)
 	THIRD_PARTY_DATA += third-party/pwm/pwm.c
+	CFLAGS += -DSDK_PWM_PERIOD_COMPAT_MODE=1
 endif
 
 MFORCE32 := $(shell $(CC) --help=target | grep mforce-l32)
 
 # compiler flags using during compilation of source files. Add '-pg' for debugging
-CFLAGS		= -Wpointer-arith -Wundef -Werror -Wl,-EL -nostdlib -mlongcalls -mtext-section-literals -finline-functions -fdata-sections -ffunction-sections -D__ets__ -DICACHE_FLASH -DARDUINO=106 -DCOM_SPEED_SERIAL=$(COM_SPEED_SERIAL) -DENABLE_CMD_EXECUTOR=$(ENABLE_CMD_EXECUTOR)
+CFLAGS += -Wpointer-arith -Wundef -Werror -Wl,-EL -nostdlib -mlongcalls -mtext-section-literals -finline-functions -fdata-sections -ffunction-sections \
+         -D__ets__ -DICACHE_FLASH -DARDUINO=106 -DCOM_SPEED_SERIAL=$(COM_SPEED_SERIAL) -DENABLE_CMD_EXECUTOR=$(ENABLE_CMD_EXECUTOR) -DESP8266=1 -DSMING_INCLUDED=1 
 ifeq ($(SMING_RELEASE),1)
 	# See: https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html
 	#      for full list of optimization options
@@ -270,9 +312,14 @@ ifeq ($(ENABLE_SSL),1)
 		AXTLS_FLAGS += -DSSL_DEBUG=1 -DDEBUG_TLS_MEM=1 -DAXL_DEBUG=1
 	endif
 	CUSTOM_TARGETS += $(USER_LIBDIR)/libaxtls.a
-	EXTRA_CFLAGS_AXTLS = -I../../system/include -I../../Wiring
+#	EXTRA_CFLAGS_AXTLS = -I../../system/include -I../../Wiring
 	CFLAGS += $(AXTLS_FLAGS)  
 	CXXFLAGS += $(AXTLS_FLAGS)
+endif
+
+ifeq ($(ENABLE_WPS), 1)
+   LIBS += wps
+   CFLAGS += -DENABLE_WPS=1
 endif
 
 SRC_DIR		:= $(MODULES)
@@ -306,6 +353,7 @@ EXTRA_INCDIR	:= $(addprefix -I,$(EXTRA_INCDIR))
 MODULE_INCDIR	:= $(addsuffix /include,$(INCDIR))
 
 SAMPLES_DIRS := $(shell ls -1 ../samples)
+TOOLS_DIRS   := $(shell ls -1 ../tools)
 THIRD_PARTY_DIRS := $(shell ls -1 third-party )
 DOXYGEN := $(shell command -v doxygen 2> /dev/null)
 
@@ -334,17 +382,23 @@ $1/%.o: %.S
 	$(vecho) "AS $$<"
 	$(Q) $(AS) $(INCDIR) $(MODULE_INCDIR) $(EXTRA_INCDIR) $(SDK_INCDIR) $(CFLAGS)  -c $$< -o $$@
 endif	
-$1/%.o: %.c
+$1/%.o: %.c $1/%.c.d
 	$(vecho) "CC $$<"
 	$(Q) $(CC) $(INCDIR) $(MODULE_INCDIR) $(EXTRA_INCDIR) $(SDK_INCDIR) $(CFLAGS)  -c $$< -o $$@
-$1/%.o: %.cpp
+$1/%.o: %.cpp $1/%.cpp.d
 	$(vecho) "C+ $$<"
 	$(Q) $(CXX) $(INCDIR) $(MODULE_INCDIR) $(EXTRA_INCDIR) $(SDK_INCDIR) $(CXXFLAGS)  -c $$< -o $$@
+$1/%.c.d: %.c
+	$(Q) $(CC) $(INCDIR) $(MODULE_INCDIR) $(EXTRA_INCDIR) $(SDK_INCDIR) $(CFLAGS) -MM -MT $1/$$*.o $$< -o $$@
+$1/%.cpp.d: %.cpp
+	$(Q) $(CXX) $(INCDIR) $(MODULE_INCDIR) $(EXTRA_INCDIR) $(SDK_INCDIR) $(CXXFLAGS) -MM -MT $1/$$*.o $$< -o $$@
+ 
+.PRECIOUS: $1/%.c.d $1/%.cpp.d
 endef
 
-.PHONY: all checkdirs clean spiffy test samples-clean samples $(SAMPLES_DIRS) docs api wiki
+.PHONY: all checkdirs clean tools $(TOOLS_DIRS) test samples-clean samples $(SAMPLES_DIRS) docs api wiki
 
-all: checkdirs $(APP_AR) spiffy
+all: checkdirs $(APP_AR) tools
 
 ifeq ($(ENABLE_CUSTOM_PWM), 1)	
 $(USER_LIBDIR)/libpwm_open.a: third-party/pwm/pwm.c
@@ -368,13 +422,10 @@ ifeq ($(ENABLE_CUSTOM_LWIP), 1)
 $(USER_LIBDIR)/liblwip_%.a: third-party/esp-open-lwip/Makefile.open
 	$(Q) $(MAKE) -C third-party/esp-open-lwip/ -f Makefile.open ENABLE_ESPCONN=$(ENABLE_ESPCONN) ENABLE_PING=$(ENABLE_LWIP_PING) SDK_BASE="$(SDK_BASE)" USER_LIBDIR="$(SMING_HOME)/$(USER_LIBDIR)/" CFLAGS_EXTRA="$(EXTRA_CFLAGS_LWIP)" all
 endif
-
-spiffy: spiffy/spiffy
-
-spiffy/spiffy: third-party/spiffs/makefile
-	$(vecho) "Making spiffy utility"
-	$(Q) $(MAKE) --no-print-directory -C spiffy V=$(V)
-	$(vecho) "Done"
+ifeq ($(ENABLE_CUSTOM_LWIP), 2)
+$(USER_LIBDIR)/liblwip%.a: third-party/lwip2/Makefile.sming
+	$(Q) $(MAKE) -C third-party/lwip2/ -f Makefile.sming ENABLE_ESPCONN=$(ENABLE_ESPCONN) SDK_BASE="$(SDK_BASE)" USER_LIBDIR="$(SMING_HOME)/$(USER_LIBDIR)/" CFLAGS_EXTRA="$(EXTRA_CFLAGS_LWIP)" all
+endif
 
 $(APP_AR): $(OBJ)
 	$(vecho) "AR $@"
@@ -388,7 +439,7 @@ endif
 	$(Q) cp -r $(APP_AR) $(USER_LIBDIR)/$(LIBSMING).a  
 	$(vecho) "Done"
 
-checkdirs: $(THIRD_PARTY_DATA) reload $(BUILD_DIR) $(FW_BASE) $(CUSTOM_TARGETS)
+checkdirs: $(ARDUINO_LIBRARIES) $(THIRD_PARTY_DATA) reload $(BUILD_DIR) $(FW_BASE) $(CUSTOM_TARGETS)
 
 $(BUILD_DIR):
 	$(Q) mkdir -p $@
@@ -396,8 +447,6 @@ $(BUILD_DIR):
 $(FW_BASE):
 	$(Q) mkdir -p $@
 	$(Q) mkdir -p $@/upgrade
-
-rebuild: clean all
 
 clean:
 	$(Q) rm -f $(APP_AR)
@@ -407,11 +456,12 @@ clean:
 	$(Q) rm -rf $(FW_BASE)
 ifeq ($(ENABLE_SSL), 1)
 	$(Q) -$(MAKE) --no-print-directory -C third-party/axtls-8266 clean -e V=$(V) BIN_DIR="$(SMING_HOME)/$(USER_LIBDIR)" CFLAGS_EXTRA="$(EXTRA_CFLAGS_AXTLS)"
-else
-	$(Q) $(MAKE) --no-print-directory -C spiffy clean V=$(V)
 endif	
 ifeq ($(ENABLE_CUSTOM_LWIP), 1)
 	$(Q) -$(MAKE) -C third-party/esp-open-lwip/ -f Makefile.open ENABLE_ESPCONN=$(ENABLE_ESPCONN) ENABLE_PING=$(ENABLE_LWIP_PING) SDK_BASE="$(SDK_BASE)" USER_LIBDIR="$(SMING_HOME)/$(USER_LIBDIR)/" CFLAGS_EXTRA="$(EXTRA_CFLAGS_LWIP)" clean
+endif
+ifeq ($(ENABLE_CUSTOM_LWIP), 2)
+	$(Q) -$(MAKE) -C third-party/lwip2/ -f Makefile.sming ENABLE_ESPCONN=$(ENABLE_ESPCONN) SDK_BASE="$(SDK_BASE)" USER_LIBDIR="$(SMING_HOME)/$(USER_LIBDIR)/" CFLAGS_EXTRA="$(EXTRA_CFLAGS_LWIP)" clean
 endif
 
 test: Basic_Blink Basic_rBoot Basic_Ssl Basic_HwPWM 
@@ -451,6 +501,16 @@ third-party/%:
 # For now we solve this by "reloading" the makefile after fetching a module.
     RELOAD_MKFILE=1
 
+Libraries/%: 
+	$(vecho) "Fetching Arduino Library $(dir $@) ..."
+	$(Q) $(GIT) submodule update --init --recursive $(dir $@)
+	$(Q) touch $(patsubst Libraries/%/,Libraries/.patches/%.patch, $(dir $@))
+	$(Q) -cd $(dir $@); $(GIT) apply -v $(patsubst Libraries/%/,$(SMING_HOME)/Libraries/.patches/%.patch, $(dir $@)) --ignore-whitespace --whitespace=nowarn
+# if the new submodule brings source code files that need to be compiled inside Sming
+# then we need somehow to be able to "see" these new files. 
+# For now we solve this by "reloading" the makefile after fetching a module.
+    RELOAD_MKFILE=1
+
 reload: 
 	$(Q) if [ $(RELOAD_MKFILE) -eq 1 ]; then \
         $(MAKE) -C $(SMING_HOME) $(MAKECMDGOALS) RELOAD_MKFILE=0; \
@@ -471,12 +531,33 @@ third-party-clean:
           rm -rf third-party/$$dir; \
         done
 	$(Q) $(GIT) checkout third-party     
+	
+libraries-clean:
+	$(Q) rm -rf Libraries
+	$(Q) $(GIT) checkout Libraries 
+
+tools: third-party/spiffs/makefile $(TOOLS_DIRS)
+
+$(TOOLS_DIRS):
+	$(Q) if [ -d $(SMING_HOME)/../tools/$@ ]; then \
+			echo "Making $@"; \
+			if [ ! -e $(SMING_HOME)/../tools/$@/Makefile ]; then (cd $(SMING_HOME)/../; $(GIT) submodule update --init --recursive tools/$@/;); fi; \
+			$(MAKE) --no-print-directory -C $(SMING_HOME)/../tools/$@ V=$(V); \
+		 fi
+
+tools-clean:
+	$(Q) for dir in $(TOOLS_DIRS); do \
+		  if [ ! -d $(SMING_HOME)/../tools/$$dir ]; then continue; fi; \
+          $(MAKE) --no-print-directory -C $(SMING_HOME)/../tools/$$dir clean V=$(V); \
+        done
        
-dist-clean: clean samples-clean third-party-clean
+dist-clean: clean samples-clean third-party-clean libraries-clean tools-clean
 	$(Q) for file in $(shell ls $(USER_LIBDIR)/lib*.a ); do \
  	   rm $$file; \
  	done
 	$(Q) $(GIT) checkout $(USER_LIBDIR)
 
 $(foreach bdir,$(BUILD_DIR),$(eval $(call compile-objects,$(bdir))))
+$(foreach bdir,$(BUILD_DIR),$(eval include $(wildcard $(bdir)/*.c.d)))
+$(foreach bdir,$(BUILD_DIR),$(eval include $(wildcard $(bdir)/*.cpp.d)))
 

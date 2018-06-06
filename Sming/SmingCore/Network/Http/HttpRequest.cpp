@@ -12,7 +12,9 @@
 
 #include "HttpRequest.h"
 
-HttpRequest::HttpRequest(URL uri) {
+#include <algorithm>
+
+HttpRequest::HttpRequest(const URL& uri) {
 	this->uri = uri;
 }
 
@@ -50,12 +52,15 @@ HttpRequest& HttpRequest::operator = (const HttpRequest& rhs) {
 }
 
 HttpRequest::~HttpRequest() {
-	if(queryParams != NULL) {
-		delete queryParams;
-	}
+	delete queryParams;
+	delete stream;
+	delete responseStream;
+	queryParams = NULL;
+	stream = NULL;
+	responseStream = NULL;
 }
 
-HttpRequest* HttpRequest::setURL(URL uri) {
+HttpRequest* HttpRequest::setURL(const URL& uri) {
 	this->uri = uri;
 	return this;
 }
@@ -130,7 +135,7 @@ String HttpRequest::getQueryParameter(const String& parameterName, const String&
 			Vector<String> pair;
 			int count = splitString(parts[i], '=' , pair);
 			if(count != 2) {
-				debugf("getQueryParameter: Missing = in query string: %s", parts[i].c_str());
+				debug_w("getQueryParameter: Missing = in query string: %s", parts[i].c_str());
 				continue;
 			}
 			(*queryParams)[pair.at(0)] = pair.at(1); // TODO: name and value URI decoding...
@@ -151,11 +156,12 @@ String HttpRequest::getBody()
 	}
 
 	String ret;
-	if(stream->length() != -1 && stream->getStreamType() == eSST_Memory) {
+	if(stream->available() != -1 && stream->getStreamType() == eSST_Memory) {
 		MemoryDataStream *memory = (MemoryDataStream *)stream;
 		char buf[1024];
-		for(int i=0; i< stream->length(); i += 1024) {
+		while(stream->available() > 0) {
 			int available = memory->readMemoryBlock(buf, 1024);
+			memory->seek(std::max(available, 0));
 			ret += String(buf, available);
 			if(available < 1024) {
 				break;
@@ -185,12 +191,12 @@ uint32_t HttpRequest::getSslOptions() {
  	return sslOptions;
 }
 
-HttpRequest* HttpRequest::pinCertificate(SSLFingerprints fingerprints) {
+HttpRequest* HttpRequest::pinCertificate(const SSLFingerprints& fingerprints) {
 	sslFingerprint = fingerprints;
 	return this;
 }
 
-HttpRequest* HttpRequest::setSslClientKeyCert(SSLKeyCertPair clientKeyCert) {
+HttpRequest* HttpRequest::setSslClientKeyCert(const SSLKeyCertPair& clientKeyCert) {
 	this->sslClientKeyCert = clientKeyCert;
 	return this;
 }
@@ -199,7 +205,7 @@ HttpRequest* HttpRequest::setSslClientKeyCert(SSLKeyCertPair clientKeyCert) {
 
 HttpRequest* HttpRequest::setBody(const String& body) {
 	if(stream != NULL) {
-		debugf("HttpRequest::setBody: Discarding already set stream!");
+		debug_e("HttpRequest::setBody: Discarding already set stream!");
 		delete stream;
 		stream = NULL;
 	}
@@ -207,9 +213,9 @@ HttpRequest* HttpRequest::setBody(const String& body) {
 	MemoryDataStream *memory = new MemoryDataStream();
 	int written = memory->write((uint8_t *)body.c_str(), body.length());
 	if(written < body.length()) {
-		debugf("HttpRequest::setBody: Unable to store the complete body");
+		debug_e("HttpRequest::setBody: Unable to store the complete body");
 	}
-	stream = (IDataSourceStream*)memory;
+	stream = memory;
 	return this;
 }
 
@@ -219,7 +225,7 @@ HttpRequest* HttpRequest::setBody(uint8_t *rawData, size_t length) {
 	return this;
 }
 
-HttpRequest* HttpRequest::setBody(IDataSourceStream *stream) {
+HttpRequest* HttpRequest::setBody(ReadWriteStream *stream) {
 	this->stream = stream;
 	return this;
 }

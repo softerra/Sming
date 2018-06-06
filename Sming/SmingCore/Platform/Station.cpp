@@ -14,17 +14,10 @@ StationClass::StationClass()
 {
 	System.onReady(this);
 	runScan = false;
-	onConnectOk = nullptr;
-	onConnectFail = nullptr;
-	connectionTimeOut = 0;
-	connectionTimer = NULL;
-	connectionStarted = 0;
 }
 
 StationClass::~StationClass()
 {
-	delete connectionTimer;
-	connectionTimer = NULL;
 }
 
 void StationClass::enable(bool enabled, bool save)
@@ -36,8 +29,6 @@ void StationClass::enable(bool enabled, bool save)
 		mode = wifi_get_opmode() & ~STATION_MODE;
 	if (enabled)
 		mode |= STATION_MODE;
-	else if (connectionTimer)
-		delete connectionTimer;
 	if (save)
 		wifi_set_opmode(mode);
 	else
@@ -49,7 +40,7 @@ bool StationClass::isEnabled()
 	return wifi_get_opmode() & STATION_MODE;
 }
 
-bool StationClass::config(String ssid, String password, bool autoConnectOnStartup /* = true*/, bool save /* = true */)
+bool StationClass::config(const String& ssid, const String& password, bool autoConnectOnStartup /* = true*/, bool save /* = true */)
 {
 	station_config config = {0};
 
@@ -142,7 +133,7 @@ void StationClass::enableDHCP(bool enable)
 		wifi_station_dhcpc_stop();
 }
 
-void StationClass::setHostname(String hostname)
+void StationClass::setHostname(const String& hostname)
 {
 	wifi_station_set_hostname((char*)hostname.c_str());
 }
@@ -288,27 +279,6 @@ bool StationClass::startScan(ScanCompletedDelegate scanCompleted)
 	return res;
 }
 
-void StationClass::waitConnection(ConnectionDelegate successfulConnected)
-{
-	waitConnection(successfulConnected, -1, NULL);
-}
-
-void StationClass::waitConnection(ConnectionDelegate successfulConnected, int secondsTimeOut, ConnectionDelegate connectionNotEstablished)
-{
-	if (onConnectOk || onConnectFail )
-	{
-		SYSTEM_ERROR("WRONG CALL waitConnection method..");
-		return;
-	}
-
-	onConnectOk = successfulConnected;
-	connectionTimeOut = secondsTimeOut;
-	onConnectFail = connectionNotEstablished;
-	connectionTimer = new Timer();
-	connectionTimer->initializeMs(50, staticCheckConnection).start();
-	connectionStarted = millis();
-}
-
 ////////////
 
 void StationClass::staticScanCompleted(void *arg, STATUS status)
@@ -345,43 +315,6 @@ void StationClass::onSystemReady()
 		wifi_station_scan(NULL, staticScanCompleted);
 		runScan = false;
 	}
-}
-
-void StationClass::internalCheckConnection()
-{
-	uint32 duration = millis() - connectionStarted;
-	if (isConnected())
-	{
-		ConnectionDelegate callOk = nullptr;
-		if (onConnectOk) {
-			callOk = onConnectOk;
-		}
-
-		onConnectOk = nullptr;
-		onConnectFail = nullptr;
-		delete connectionTimer;
-		connectionTimeOut = 0;
-
-		if (callOk) {
-			callOk();
-		}
-	}
-	else if (connectionTimeOut > 0 && duration > (uint32)connectionTimeOut * 1000)
-	{
-		ConnectionDelegate call = onConnectFail;
-		onConnectOk = nullptr;
-		onConnectFail = nullptr;
-		delete connectionTimer;
-		connectionTimeOut = 0;
-
-		if (call)
-			call();
-	}
-}
-
-void StationClass::staticCheckConnection()
-{
-	WifiStation.internalCheckConnection();
 }
 
 const char* StationClass::getConnectionStatusName()
@@ -454,6 +387,79 @@ void StationClass::smartConfigStop() {
 	smartconfig_stop();
 	smartConfigCallback = NULL;
 }
+
+#ifdef ENABLE_WPS
+void StationClass::internalWpsConfig(wps_cb_status status)
+{
+	bool processInternal=true;
+	if (wpsConfigCallback){
+		processInternal=wpsConfigCallback(status);
+	}
+	if (processInternal){
+		switch (status) {
+			case WPS_CB_ST_SUCCESS:
+				debugf("wifi_wps_status_cb(): WPS_CB_ST_SUCCESS\n");
+				wpsConfigStop();
+				connect();
+				break;
+			case WPS_CB_ST_FAILED:
+				debugf("wifi_wps_status_cb(): WPS_CB_ST_FAILED\n");
+				wpsConfigStop();
+				connect();	// try to reconnect with old config
+				break;
+			case WPS_CB_ST_TIMEOUT:
+				debugf("wifi_wps_status_cb(): WPS_CB_ST_TIMEOUT\n");
+				wpsConfigStop();
+				connect();	// try to reconnect with old config
+				break;
+			case WPS_CB_ST_WEP:
+				debugf("wifi_wps_status_cb(): WPS_CB_ST_WEP\n");
+				break;
+			default :
+				debugf("wifi_wps_status_cb(): unknown wps_cb_status %d\n",status);
+				wpsConfigStop();
+				connect();   // try to reconnect with old config
+		}
+	}
+}
+
+void StationClass::staticWpsConfigCallback(wps_cb_status status) {
+	WifiStation.internalWpsConfig(status);
+}
+
+bool StationClass::wpsConfigStart(WPSConfigDelegate callback) {
+	debugf("WPS start\n");
+	wpsConfigCallback=callback;
+	wifi_station_disconnect();
+	wifi_set_opmode_current(wifi_get_opmode() | STATION_MODE);
+	debugf("WPS stationmode activated\n");
+	if(!wifi_wps_enable(WPS_TYPE_PBC)) {
+		debugf("StationClass::wpsConfigStart() : wps enable failed\n");
+		return(false);
+	}
+	if(!wifi_set_wps_cb((wps_st_cb_t) &staticWpsConfigCallback)) {
+		debugf("StationClass::wpsConfigStart() : cb failed\n");
+		return(false);
+	}
+
+	if(!wifi_wps_start()) {
+		debugf("StationClass::wpsConfigStart() : wifi_wps_start() failed\n");
+		return(false);
+	}
+	return(true);
+}
+
+bool StationClass::beginWPSConfig() {
+	debugf("StationClass::beginWPSConfig()\n");
+	return(wpsConfigStart());
+}
+
+void StationClass::wpsConfigStop() {
+	if(!wifi_wps_disable()) {
+		debugf("StationClass::wpsConfigStop() : wifi_wps_disable() failed\n");
+	}
+}
+#endif
 
 ////////////
 

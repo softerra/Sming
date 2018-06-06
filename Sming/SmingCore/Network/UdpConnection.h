@@ -5,6 +5,12 @@
  * All files of the Sming Core are provided under the LGPL v3 license.
  ****/
 
+/** @defgroup   udp UDP
+ *  @brief      Provides base for UDP clients or services
+ *  @ingroup    networking
+ *  @{
+ */
+
 #ifndef SMINGCORE_NETWORK_UDPCONNECTION_H_
 #define SMINGCORE_NETWORK_UDPCONNECTION_H_
 
@@ -42,11 +48,12 @@ protected:
 
 protected:
 	void initialize(udp_pcb* pcb = NULL);
-	static void staticOnReceive(void *arg, struct udp_pcb *pcb, struct pbuf *p, struct ip_addr *addr, u16_t port);
+	static void staticOnReceive(void *arg, struct udp_pcb *pcb, struct pbuf *p, LWIP_IP_ADDR_T *addr, u16_t port);
 
 protected:
 	udp_pcb* udp;
 	UdpConnectionDataDelegate onDataCallback;
 };
 
+/** @} */
 #endif /* SMINGCORE_NETWORK_UDPCONNECTION_H_ */
