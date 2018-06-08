@@ -98,7 +98,7 @@ uint8_t SI7021::_checkCRC8(uint16_t data)
 
 void SI7021::_command(byte cmd, byte * buf ) {
     _writeReg(&cmd, sizeof cmd);
-    delay(25); //for ESP8266
+    delay(51); //for ESP8266
     _readReg(buf, 3); // 1 - data, 2 - data, 3 - CRC
 }
 
