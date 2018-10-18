@@ -115,18 +115,13 @@ void DS18S20::DoSearch(void)
 	if (!numberOf)
 	{
 		debugx("  DBG: No DS1820 sensor found");
-        InProgress=false;
-
 	}
 	else
 	{
       debugx("  DBG: %d DS1820 sensors found",numberOf);
-
-      numberOfread=0;
-      StartReadNext();
 	}
-
-
+    numberOfread=0;
+    StartReadNext();
 }
 
 void DS18S20::StartReadNext()
