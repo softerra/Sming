@@ -1,6 +1,8 @@
---- a/Makefile	2017-05-19 15:14:34.958447918 +0300
-+++ b/Makefile	2017-05-19 15:25:04.340878424 +0300
-@@ -28,6 +28,9 @@
+diff --git a/Makefile b/Makefile
+index 08b0fba..b1ea968 100644
+--- a/Makefile
++++ b/Makefile
+@@ -28,6 +28,9 @@ LD_SCRIPT = eagle.app.v6.ld
  
  E2_OPTS = -quiet -bin -boot0
  
@@ -10,9 +12,11 @@
  ifeq ($(RBOOT_BIG_FLASH),1)
  	CFLAGS += -DBOOT_BIG_FLASH
  endif
---- a/rboot.c	2017-05-19 15:14:34.958447918 +0300
-+++ b/rboot.c	2017-05-19 15:33:16.569743767 +0300
-@@ -300,6 +300,7 @@
+diff --git a/rboot.c b/rboot.c
+index 6876317..3751d22 100644
+--- a/rboot.c
++++ b/rboot.c
+@@ -300,6 +300,7 @@ uint32 NOINLINE find_image(void) {
  
  	rboot_config *romconf = (rboot_config*)buffer;
  	rom_header *header = (rom_header*)buffer;
@@ -20,7 +24,7 @@
  
  #if defined BOOT_DELAY_MICROS && BOOT_DELAY_MICROS > 0
  	// delay to slow boot (help see messages when debugging)
-@@ -395,9 +396,26 @@
+@@ -395,9 +396,26 @@ uint32 NOINLINE find_image(void) {
  		|| romconf->chksum != calc_chksum((uint8*)romconf, (uint8*)&romconf->chksum)
  #endif
  		) {
@@ -50,9 +54,20 @@
  		romconf->magic = BOOT_CONFIG_MAGIC;
  		romconf->version = BOOT_CONFIG_VERSION;
  		default_config(romconf, flashsize);
---- a/rboot.h	2017-05-19 15:12:16.804693429 +0300
-+++ b/rboot.h	2017-05-19 15:33:35.317474706 +0300
-@@ -94,6 +94,28 @@
+diff --git a/rboot.h b/rboot.h
+index bd3ad6d..995c211 100644
+--- a/rboot.h
++++ b/rboot.h
+@@ -8,6 +8,8 @@
+ // See license.txt for license terms.
+ //////////////////////////////////////////////////
+ 
++#include <sys/types.h>
++
+ #ifdef __cplusplus
+ extern "C" {
+ #endif
+@@ -94,6 +96,36 @@ extern "C" {
  #define MAX_ROMS 4
  #endif
  
@@ -65,6 +80,10 @@
 +
 +#define OPROG_BCONF_INIT		0x0001	///< Config contains pre-flashed settings
 +#define OPROG_BCONF_NODE_INFO	0x0002	///< Config contains information about Oprog-node installed (app_version and node_name)
++#define OPROG_BCONF_VER_GIT		0x0004	///< version has additional git commit info (N-gXXXXXXX)
++#define OPROG_BCONF_VER_DATE	0x0008	///< version has additional timestamp (YYYYMMddHHmmss) for dirty build
++
++#define OPROG_GIT_COMMIT_SIZE_MAX	8	// 7 chars + 1 zero terminator
 +
 +typedef struct {
 +	uint16 magic;	///< Magic, identifies rBoot Oprog data, used uint16 to distinct it from uint8 chksum
@@ -75,13 +94,17 @@
 +
 +	char ap_ssid[32];
 +	char ap_pass[OPROG_AP_PASS_SIZE_MAX];
++
++	uint16 version_git_num;
++	char version_git_commit[OPROG_GIT_COMMIT_SIZE_MAX];
++	time_t version_ts;
 +} rboot_config_oprog;
 +#endif /* BOOT_CONFIG_OPROG */
 +
  /** @brief  Structure containing rBoot configuration
   *  @note   ROM addresses must be multiples of 0x1000 (flash sector aligned).
   *          Without BOOT_BIG_FLASH only the first 8Mbit (1MB) of the chip will
-@@ -113,6 +135,11 @@
+@@ -113,6 +145,11 @@ typedef struct {
  	uint8 count;           ///< Quantity of ROMs available to boot
  	uint8 unused[2];       ///< Padding (not used)
  	uint32 roms[MAX_ROMS]; ///< Flash addresses of each ROM
