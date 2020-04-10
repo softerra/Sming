@@ -13,7 +13,7 @@ index 08b0fba..b1ea968 100644
  	CFLAGS += -DBOOT_BIG_FLASH
  endif
 diff --git a/rboot.c b/rboot.c
-index 6876317..73f714e 100644
+index 6876317..0adb06c 100644
 --- a/rboot.c
 +++ b/rboot.c
 @@ -300,6 +300,7 @@ uint32 NOINLINE find_image(void) {
@@ -24,16 +24,20 @@ index 6876317..73f714e 100644
  
  #if defined BOOT_DELAY_MICROS && BOOT_DELAY_MICROS > 0
  	// delay to slow boot (help see messages when debugging)
-@@ -307,7 +308,7 @@ uint32 NOINLINE find_image(void) {
+@@ -307,7 +308,11 @@ uint32 NOINLINE find_image(void) {
  #endif
  
  	ets_printf("\r\nrBoot v1.4.2 - richardaburton@gmail.com\r\n");
 -
-+	ets_printf("iotc patch: 1\r\n");
++#ifdef BOOT_CONFIG_OPROG
++	ets_printf("iotc patch: 3\r\n");
++//	ets_printf("sz rboot_config=%d, sz rboot_config_oprog=%d\r\n",
++//			sizeof(rboot_config), sizeof(rboot_config_oprog));
++#endif
  	// read rom header
  	SPIRead(0, header, sizeof(rom_header));
  
-@@ -395,9 +396,26 @@ uint32 NOINLINE find_image(void) {
+@@ -395,9 +400,26 @@ uint32 NOINLINE find_image(void) {
  		|| romconf->chksum != calc_chksum((uint8*)romconf, (uint8*)&romconf->chksum)
  #endif
  		) {
@@ -64,7 +68,7 @@ index 6876317..73f714e 100644
  		romconf->version = BOOT_CONFIG_VERSION;
  		default_config(romconf, flashsize);
 diff --git a/rboot.h b/rboot.h
-index bd3ad6d..995c211 100644
+index bd3ad6d..3e93f25 100644
 --- a/rboot.h
 +++ b/rboot.h
 @@ -8,6 +8,8 @@
@@ -76,7 +80,7 @@ index bd3ad6d..995c211 100644
  #ifdef __cplusplus
  extern "C" {
  #endif
-@@ -94,6 +96,36 @@ extern "C" {
+@@ -94,6 +96,48 @@ extern "C" {
  #define MAX_ROMS 4
  #endif
  
@@ -89,8 +93,7 @@ index bd3ad6d..995c211 100644
 +
 +#define OPROG_BCONF_INIT		0x0001	///< Config contains pre-flashed settings
 +#define OPROG_BCONF_NODE_INFO	0x0002	///< Config contains information about Oprog-node installed (app_version and node_name)
-+#define OPROG_BCONF_VER_GIT		0x0004	///< version has additional git commit info (N-gXXXXXXX)
-+#define OPROG_BCONF_VER_DATE	0x0008	///< version has additional timestamp (YYYYMMddHHmmss) for dirty build
++#define OPROG_BCONF_VER_EX_DATE	0x0004	///< version date extension is valid: timestamp (YYYYMMddHHmmss) for dirty build
 +
 +#define OPROG_GIT_COMMIT_SIZE_MAX	8	// 7 chars + 1 zero terminator
 +
@@ -99,21 +102,34 @@ index bd3ad6d..995c211 100644
 +	uint16 flags;
 +
 +	uint32 app_version; ///< LE value of app verison
-+	char node_name[OPROG_NODE_NAME_SIZE_MAX];
++	uint8 node_name[OPROG_NODE_NAME_SIZE_MAX];
 +
-+	char ap_ssid[32];
-+	char ap_pass[OPROG_AP_PASS_SIZE_MAX];
++	uint8 ap_ssid[32];
++	uint8 ap_pass[OPROG_AP_PASS_SIZE_MAX];
 +
-+	uint16 version_git_num;
-+	char version_git_commit[OPROG_GIT_COMMIT_SIZE_MAX];
-+	time_t version_ts;
++	struct {
++		// 2 bytes
++		uint16 git_num;	// valid if > 0, if == 0, then git_num and git_commit is not used
++		// 8 bytes
++		uint8 git_commit[OPROG_GIT_COMMIT_SIZE_MAX];
++		// 6 bytes
++		struct {
++			uint8 year; // real year = (2020 + year) - up to 2275
++			uint8 mon;
++			uint8 mday;
++			uint8 hour;
++			uint8 min;
++			uint8 sec;
++		} dt;
++	} app_version_ex;
 +} rboot_config_oprog;
++// 2 + 2 + 4 + 32 + 32 + 32 + 2 + 8 + 6 = 120 bytes
 +#endif /* BOOT_CONFIG_OPROG */
 +
  /** @brief  Structure containing rBoot configuration
   *  @note   ROM addresses must be multiples of 0x1000 (flash sector aligned).
   *          Without BOOT_BIG_FLASH only the first 8Mbit (1MB) of the chip will
-@@ -113,6 +145,11 @@ typedef struct {
+@@ -113,6 +157,11 @@ typedef struct {
  	uint8 count;           ///< Quantity of ROMs available to boot
  	uint8 unused[2];       ///< Padding (not used)
  	uint32 roms[MAX_ROMS]; ///< Flash addresses of each ROM
