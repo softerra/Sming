@@ -5,8 +5,16 @@
 #define I2C_ADDR 0x40
 
 // I2C commands
-#define RH_READ             0xE5 
-#define TEMP_READ           0xE3 
+#define RH_READ             0xE5
+#define TEMP_READ           0xE3
+/*
+ * getTemperature(), getHumidityPercent() works on SI7021, SHT21, HTU21
+ * getHumidityAndTemperature() work only on SI7021
+ * - commands holding master result in i2c hanging
+ *   when getTemperature() or getHumidityPercent() called for SHT21
+ */
+#define RH_READ_NHM         0xF5
+#define TEMP_READ_NHM       0xF3
 #define POST_RH_TEMP_READ   0xE0 
 #define RESET               0xFE 
 #define USER1_READ          0xE7 
@@ -54,7 +62,7 @@ void SI7021::softReset(void)
 
 int SI7021::getTemperature() {
     byte tempbytes[3];
-    _command(TEMP_READ, tempbytes, 3);
+    _command(TEMP_READ_NHM, tempbytes, 3);
     long tempraw = (long)tempbytes[0] << 8 | tempbytes[1];
     if (_checkCRC8(tempraw) != tempbytes[2]){
     	return 99998;
@@ -72,7 +80,7 @@ int SI7021::_getTemperaturePostHumidity() {
 
 unsigned int SI7021::getHumidityPercent() {
     byte humbytes[3];
-    _command(RH_READ, humbytes, 3);
+    _command(RH_READ_NHM, humbytes, 3);
     long humraw = (long)humbytes[0] << 8 | humbytes[1];
     if (_checkCRC8(humraw) != humbytes[2]){
     	return 99999;
@@ -112,11 +120,18 @@ void SI7021::_writeReg(byte * reg, int reglen) {
 }
 
 int SI7021::_readReg(byte * reg, int reglen) {
-    Wire.requestFrom(I2C_ADDR, reglen);
-    while(Wire.available() < reglen) {
-    }
-    for(int i = 0; i < reglen; i++) { 
-        reg[i] = Wire.read(); 
+	int ret = Wire.requestFrom(I2C_ADDR, reglen);
+	if (ret == 0) {
+		// it may be NACK (using No Hold Master commands) or BUSY: requestFrom() doesn't specify which one,
+		// we assume it's NACK, so delay a bit and repeat request
+		delay(40);
+		ret = Wire.requestFrom(I2C_ADDR, reglen);
+		//debugf("SI7021::_readReg(repeat): ret=%d", ret);
+	}
+    //debugf("SI7021::_readReg: ret=%d", ret);
+    for (int i = 0; i < reglen; i++) {
+        reg[i] = Wire.read();
+        //debugf("SI7021::_readReg[%d]: 0x%02x", i, reg[i]);
     }
     return 1;
 }
