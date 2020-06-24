@@ -53,8 +53,8 @@ void SI7021::softReset(void)
 }
 
 int SI7021::getTemperature() {
-    byte tempbytes[2];
-    _command(TEMP_READ, tempbytes);
+    byte tempbytes[3];
+    _command(TEMP_READ, tempbytes, 3);
     long tempraw = (long)tempbytes[0] << 8 | tempbytes[1];
     if (_checkCRC8(tempraw) != tempbytes[2]){
     	return 99998;
@@ -64,15 +64,15 @@ int SI7021::getTemperature() {
 
 int SI7021::_getTemperaturePostHumidity() {
     byte tempbytes[2];
-    _command(POST_RH_TEMP_READ, tempbytes);
+    _command(POST_RH_TEMP_READ, tempbytes, 2);
     long tempraw = (long)tempbytes[0] << 8 | tempbytes[1];
     return ((17572 * tempraw) >> 16) - 4685;
 }
 
 
 unsigned int SI7021::getHumidityPercent() {
-    byte humbytes[2];
-    _command(RH_READ, humbytes);
+    byte humbytes[3];
+    _command(RH_READ, humbytes, 3);
     long humraw = (long)humbytes[0] << 8 | humbytes[1];
     if (_checkCRC8(humraw) != humbytes[2]){
     	return 99999;
@@ -96,10 +96,10 @@ uint8_t SI7021::_checkCRC8(uint16_t data)
 }
 
 
-void SI7021::_command(byte cmd, byte * buf ) {
+void SI7021::_command(byte cmd, byte * buf, int buflen) {
     _writeReg(&cmd, sizeof cmd);
     delay(51); //for ESP8266
-    _readReg(buf, 3); // 1 - data, 2 - data, 3 - CRC
+    _readReg(buf, buflen); // 1 - data, 2 - data, 3 - CRC
 }
 
 void SI7021::_writeReg(byte * reg, int reglen) {

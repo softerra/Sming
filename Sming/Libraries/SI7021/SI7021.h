@@ -37,7 +37,7 @@ class SI7021
     void setHeater(bool on);
 
   private:
-    void _command(byte cmd, byte * buf );
+    void _command(byte cmd, byte * buf, int buflen);
     void _writeReg(byte * reg, int reglen);
     int _readReg(byte * reg, int reglen);
     int _getTemperaturePostHumidity();
